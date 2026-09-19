@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="500" viewBox="0 0 960 500">
+<rect width="960" height="500" rx="24" fill="#fff"/><rect x="1" y="1" width="958" height="498" rx="23" fill="none" stroke="#d0d7de"/>
+<text x="48" y="58" font-family="Arial" font-size="18" font-weight="700" fill="#24292f">COLLIDER · PR #42</text>
+<text x="48" y="116" font-family="Arial" font-size="28" font-weight="700" fill="#24292f">Compatibility summary</text>
+<text x="48" y="152" font-family="Arial" font-size="16" fill="#57606a">No behavioral collision found with the PRs checked below.</text>
+<rect x="48" y="196" width="864" height="210" rx="16" fill="#f6f8fa" stroke="#d8dee4"/>
+<text x="76" y="238" font-family="Arial" font-size="13" fill="#57606a">PR</text><text x="770" y="238" font-family="Arial" font-size="13" fill="#57606a">RESULT</text>
+<text x="76" y="280" font-family="Arial" font-size="17" fill="#24292f">#31 Add coupon</text><text x="790" y="280" font-family="Arial" font-size="18" font-weight="700" fill="#1a7f37">PASS</text>
+<text x="76" y="326" font-family="Arial" font-size="17" fill="#24292f">#37 Add membership</text><text x="790" y="326" font-family="Arial" font-size="18" font-weight="700" fill="#1a7f37">PASS</text>
+<text x="76" y="372" font-family="Arial" font-size="17" fill="#24292f">#41 Add VAT</text><text x="790" y="372" font-family="Arial" font-size="18" font-weight="700" fill="#1a7f37">PASS</text>
+<text x="48" y="452" font-family="Arial" font-size="20" font-weight="700" fill="#1a7f37">3 / 3 combinations passed</text>
+</svg>
