@@ -1,0 +1,5 @@
+{
+  "collisionPoint": "Thinking Process: 1. **Analyze the Request:** * Role: Senior Engineer analyzing code changes and writing tests (though here it's analysis). * Task: Analyze two ",
+  "reasoning": "Thinking Process: 1. **Analyze the Request:** * Role: Senior Engineer analyzing code changes and writing tests (though here it's analysis). * Task: Analyze two Pull Requests (#2 for membership discount, #1 for coupon discount) applied to `src/orderService.ts` and `src/priceCalculator.ts`. * Goal: Identify the collision point where merging these PRs would cause incorrect behavior based on the specification. Explain why in 2-3 sentences within a JSON \"reasoning\" field. State the expected correct result numerically (though specific numbers aren't provided for this merge scenario, I need to infer ",
+  "expected": "명세 문서 기준 (아래 생성 테스트 참조)"
+}

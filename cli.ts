@@ -30,6 +30,26 @@ if (!Number.isInteger(current)) fail(`PR 번호가 숫자가 아닙니다: ${prA
 
 const baseUrl = optional('PUBLIC_BASE_URL').replace(/\/$/, '')
 
+/**
+ * 가설 문장에서 모델의 사고 서문을 걷어낸다.
+ *
+ * 추론형 모델은 "Thinking Process:" 같은 영어 서문을 본문으로 흘린다.
+ * 그대로 두면 PR 코멘트의 What breaks 자리에 영어 사고 과정이 실린다.
+ */
+function cleanImpact(raw: string | undefined): string | undefined {
+  if (!raw) return undefined
+  const dropped = raw
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/^[\s\S]*?(?:Thinking Process|Analyze the Request|Constraint)[^\n]*\n?/i, '')
+    .replace(/^[\s*\d.:#-]+/, '')
+    .trim()
+
+  // 서문을 걷어내고도 한글이 한 글자도 없으면 사고 텍스트가 전부였던 경우다
+  const text = (/[가-힣]/.test(dropped) ? dropped : raw).split('\n')[0]!.trim()
+  if (!/[가-힣]/.test(text)) return undefined
+  return text.length > 140 ? `${text.slice(0, 139)}…` : text
+}
+
 /** 엔진 결과를 PR 코멘트가 쓰는 모양으로 줄인다. */
 function toPrReport(r: CollisionReport, currentPr: { number: number; title: string }): PrReport {
   const titleOf = (n: number) => r.prs.find((p) => p.number === n)?.title
@@ -56,7 +76,7 @@ function toPrReport(r: CollisionReport, currentPr: { number: number; title: stri
         ? {
             withPr: other,
             withPrTitle: titleOf(other),
-            impact: first.hypothesis?.collisionPoint,
+            impact: cleanImpact(first.hypothesis?.collisionPoint),
             expected: first.assertion?.expected,
             actual: first.assertion?.actual,
           }

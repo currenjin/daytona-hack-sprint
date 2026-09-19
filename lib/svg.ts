@@ -51,29 +51,49 @@ function oneLine(s: string): string {
   return s.replace(/\s+/g, ' ').trim()
 }
 
-// 순수 함수라 실제 폰트 메트릭을 잴 수 없다. 글자별 평균 폭을 근사해서 잘라낼 지점을 정한다.
-// 과소평가하면 박스 밖으로 새므로 넉넉한 쪽(조금 넓게)으로 잡았다.
+// 순수 함수라 실제 폰트 메트릭을 잴 수 없다. Arial/Helvetica 의 advance width(1000 단위)를
+// 표로 들고 근사한다. 평균 폭 한 값으로 뭉뚱그리면 대문자/CJK 가 섞일 때 과소평가해서
+// 텍스트가 카드 밖으로 샌다.
+const ADV: Record<string, number> = {}
+for (const [chars, w] of [
+  ["'", 191],
+  ['ijl', 222],
+  ['|', 260],
+  [' !,./:;I[]\\ft', 278],
+  ['()-`r{}', 333],
+  ['"', 355],
+  ['*', 389],
+  ['^', 469],
+  ['Jckpsvxyz', 500],
+  ['#$?_L0123456789abdeghnoqu', 556],
+  ['+<=>~', 584],
+  ['FTZ', 611],
+  ['&ABEKPSVXY', 667],
+  ['CDHNRUw', 722],
+  ['GOQ', 778],
+  ['Mm', 833],
+  ['%', 889],
+  ['W', 944],
+  ['@', 1015],
+] as [string, number][]) {
+  for (const ch of chars) ADV[ch] = w
+}
+
+// system stack 의 실제 폰트(SF Pro 등)가 Arial 보다 조금 넓을 수 있어 여유를 둔다.
+const SAFETY = 1.05
+const BOLD_RATIO = 1.09
+
 function estimateWidth(s: string, fontSize: number, bold = false): number {
   let units = 0
   for (const ch of s) {
     const code = ch.codePointAt(0) ?? 0
     if (code >= 0x2e80 || (code >= 0x1100 && code <= 0x11ff)) {
-      units += 1 // 한글/CJK/전각 기호는 거의 1em
-    } else if (ch === ' ') {
-      units += 0.29
-    } else if ('iljtfrI.,:;!|\'`'.includes(ch)) {
-      units += 0.33
-    } else if ('mwMW@%'.includes(ch)) {
-      units += 0.87
-    } else if (ch >= '0' && ch <= '9') {
-      units += 0.57
-    } else if (ch >= 'A' && ch <= 'Z') {
-      units += 0.69
+      units += 1000 // 한글/CJK/전각 기호는 1em
     } else {
-      units += 0.55
+      units += ADV[ch] ?? 600 // 표에 없는 기호(₩, ✓, · …)는 넉넉하게
     }
   }
-  return units * fontSize * (bold ? 1.06 : 1)
+  return (units / 1000) * fontSize * (bold ? BOLD_RATIO : 1) * SAFETY
 }
 
 // 길면 잘라내고 … 을 붙인다.
