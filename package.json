@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "tsx watch server.ts",
     "start": "tsx server.ts",
-    "router": "node router/index.js",
     "typecheck": "tsc --noEmit",
     "preflight": "tsx scripts/preflight.ts",
     "collider": "tsx cli.ts"
