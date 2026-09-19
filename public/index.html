@@ -3,196 +3,220 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Collider — 각각 초록인데 합치면 깨진다</title>
+<title>Collider</title>
 <style>
   :root {
-    --bg:#08090b; --panel:#121519; --line:#242a31; --fg:#e9edf2; --dim:#8b949e;
-    --green:#3fb950; --red:#f85149; --amber:#d29922; --accent:#58a6ff;
+    --bg:#fbfbfa; --card:#ffffff; --line:#e6e4e0; --line-soft:#f0eeeb;
+    --fg:#17181a; --dim:#6b6f76; --faint:#9aa0a6;
+    --green:#15803d; --green-bg:#f0fdf4; --green-line:#bbf7d0;
+    --red:#b91c1c; --red-bg:#fef2f2; --red-line:#fecaca;
+    --ink:#1f2937;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   }
-  *{box-sizing:border-box}
-  body{
-    margin:0;background:var(--bg);color:var(--fg);min-height:100vh;padding:36px 20px 80px;
-    font:17px/1.65 ui-sans-serif,-apple-system,"Apple SD Gothic Neo",Pretendard,system-ui,sans-serif;
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0f1011; --card:#17191b; --line:#2a2d31; --line-soft:#212427;
+      --fg:#ececec; --dim:#9ba1a8; --faint:#6b7076;
+      --green:#4ade80; --green-bg:#0f2417; --green-line:#1e5236;
+      --red:#f87171; --red-bg:#2a1414; --red-line:#5c2626;
+      --ink:#d6dae0;
+    }
   }
-  .wrap{max-width:900px;margin:0 auto}
-  header{display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap}
-  h1{font-size:34px;margin:0;letter-spacing:-.02em}
-  .chip{color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.08em}
-  .sub{color:var(--dim);margin:0 0 30px;font-size:16px}
-
-  form{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:12px}
-  input{
-    padding:15px 16px;background:var(--panel);border:1px solid var(--line);border-radius:11px;
-    color:var(--fg);font:16px/1 ui-monospace,SFMono-Regular,Menlo,monospace;min-width:0;
+  * { box-sizing: border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--fg);
+    font:17px/1.6 ui-sans-serif, -apple-system, "Apple SD Gothic Neo", Pretendard, system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:56px 24px 96px;
   }
-  input:focus{outline:none;border-color:var(--accent)}
-  button.go{
-    padding:15px 28px;border:0;border-radius:11px;background:var(--accent);color:#04121f;
-    font-size:16px;font-weight:800;cursor:pointer;white-space:nowrap;font-family:inherit;
+  .wrap { max-width:820px; margin:0 auto; }
+
+  .badge {
+    display:inline-block; font-size:11px; font-weight:600; letter-spacing:.09em;
+    color:var(--dim); border:1px solid var(--line); border-radius:999px;
+    padding:5px 11px; margin-bottom:20px;
   }
-  button.go:disabled{opacity:.45;cursor:not-allowed}
-  .examples{display:flex;gap:8px;margin-bottom:30px;flex-wrap:wrap}
-  .examples button{
-    padding:7px 13px;font-size:13px;border-radius:999px;background:transparent;
-    border:1px solid var(--line);color:var(--dim);cursor:pointer;font-family:inherit;
+  h1 { font-size:40px; line-height:1.15; letter-spacing:-.03em; margin:0 0 14px; font-weight:700; }
+  .lede { font-size:18px; color:var(--dim); margin:0 0 36px; max-width:60ch; }
+  .lede b { color:var(--fg); font-weight:600; }
+
+  form { display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:12px; }
+  input {
+    padding:14px 15px; background:var(--card); border:1px solid var(--line);
+    border-radius:10px; color:var(--fg); font:15px/1 var(--mono); min-width:0;
   }
-  .examples button:hover{border-color:var(--accent);color:var(--accent)}
-
-  .rail{display:none;gap:7px;margin-bottom:18px}
-  .rail.on{display:flex}
-  .seg{flex:1;text-align:center;font-size:11px;color:var(--dim);letter-spacing:.02em}
-  .seg .bar{height:4px;border-radius:2px;background:var(--line);margin-bottom:6px;transition:background .3s}
-  .seg.on .bar{background:var(--accent)}
-  .seg.on{color:var(--fg)}
-  .timer{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:800;font-size:19px;min-width:64px;text-align:right}
-
-  pre#log{
-    display:none;margin:0 0 22px;padding:15px 17px;background:var(--panel);
-    border:1px solid var(--line);border-radius:11px;max-height:190px;overflow-y:auto;
-    font:13.5px/1.75 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim);
-    white-space:pre-wrap;word-break:break-all;
+  input::placeholder { color:var(--faint); }
+  input:focus { outline:none; border-color:var(--ink); }
+  button.go {
+    padding:14px 24px; border:1px solid var(--ink); border-radius:10px;
+    background:var(--ink); color:var(--bg); font-size:15px; font-weight:600;
+    cursor:pointer; white-space:nowrap; font-family:inherit;
   }
-  pre#log.on{display:block}
-  pre#log b{color:var(--fg);font-weight:600}
-  pre#log i{color:var(--red);font-style:normal}
-
-  .card{
-    display:none;margin-bottom:18px;padding:20px 22px;background:var(--panel);
-    border:1px solid var(--line);border-radius:14px;
+  button.go:disabled { opacity:.4; cursor:not-allowed; }
+  .try { display:flex; gap:8px; margin-bottom:44px; flex-wrap:wrap; }
+  .try button {
+    padding:7px 13px; font-size:13px; border-radius:999px; background:transparent;
+    border:1px solid var(--line); color:var(--dim); cursor:pointer; font-family:inherit;
   }
-  .card.on{display:block}
-  .card h3{margin:0 0 4px;font-size:14px;color:var(--dim);font-weight:600;letter-spacing:.02em}
+  .try button:hover { border-color:var(--ink); color:var(--fg); }
 
-  /* 초록 / 빨강 결과 */
-  .verdict{display:flex;align-items:center;gap:18px}
-  .verdict .mark{font-size:42px;line-height:1;flex:none}
-  .verdict .big{font-size:26px;font-weight:800;letter-spacing:-.01em}
-  .verdict .note{color:var(--dim);font-size:14px;margin-top:3px}
-  .pass{border-color:rgba(63,185,80,.35)}
-  .pass .mark,.pass .big{color:var(--green)}
-  .fail{border-color:rgba(248,81,73,.45);background:rgba(248,81,73,.05)}
-  .fail .mark,.fail .big{color:var(--red)}
+  .rail { display:none; align-items:center; gap:10px; margin-bottom:20px; }
+  .rail.on { display:flex; }
+  .seg { flex:1; }
+  .seg .bar { height:3px; border-radius:2px; background:var(--line); transition:background .35s; }
+  .seg .nm { font-size:11px; color:var(--faint); margin-top:7px; letter-spacing:.01em; }
+  .seg.on .bar { background:var(--ink); }
+  .seg.on .nm { color:var(--fg); }
+  .clock { font:600 17px/1 var(--mono); color:var(--dim); min-width:58px; text-align:right; }
 
-  .nums{display:flex;gap:28px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
-  .nums div{flex:1}
-  .nums .k{font-size:12px;color:var(--dim);margin-bottom:3px}
-  .nums .v{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums}
-  .nums .exp .v{color:var(--green)}
-  .nums .act .v{color:var(--red)}
-
-  .prs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .pr{padding:13px 15px;background:#0d1014;border:1px solid var(--line);border-radius:10px}
-  .pr .n{color:var(--accent);font-weight:700;font-size:13px}
-  .pr .t{font-size:15px;margin:2px 0 6px}
-  .pr .f{color:var(--dim);font:12px ui-monospace,Menlo,monospace;word-break:break-all}
-
-  .hyp{color:var(--fg);font-size:15px}
-  .hyp .why{color:var(--dim);font-size:14px;margin-top:8px}
-  .hyp .exp{color:var(--amber);font-size:14px;margin-top:8px}
-
-  pre.code{
-    margin:10px 0 0;padding:14px 16px;background:#0d1014;border:1px solid var(--line);
-    border-radius:10px;overflow-x:auto;font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;
-    color:#c9d1d9;max-height:280px;
+  pre#log {
+    display:none; margin:0 0 20px; padding:14px 16px; background:var(--card);
+    border:1px solid var(--line); border-radius:12px; max-height:172px; overflow-y:auto;
+    font:13px/1.8 var(--mono); color:var(--dim); white-space:pre-wrap; word-break:break-all;
   }
-  .foot{color:var(--dim);font-size:13px;margin-top:10px}
-  .foot a{color:var(--accent)}
+  pre#log.on { display:block; }
+  pre#log b { color:var(--fg); font-weight:600; }
+  pre#log i { color:var(--red); font-style:normal; }
+
+  section {
+    display:none; margin-bottom:16px; padding:22px 24px;
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+  }
+  section.on { display:block; }
+  section > h2 {
+    font-size:12px; font-weight:600; letter-spacing:.06em; color:var(--faint);
+    margin:0 0 14px; text-transform:uppercase;
+  }
+
+  .prs { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .pr { padding:14px 16px; border:1px solid var(--line-soft); border-radius:10px; background:var(--bg); }
+  .pr .n { font:600 12px/1 var(--mono); color:var(--dim); }
+  .pr .t { font-size:15px; font-weight:600; margin:5px 0 7px; }
+  .pr .f { font:11.5px/1.7 var(--mono); color:var(--faint); word-break:break-all; }
+
+  .call { display:flex; gap:16px; align-items:flex-start; }
+  .call .mk { font-size:26px; line-height:1.1; flex:none; }
+  .call .hd { font-size:21px; font-weight:700; letter-spacing:-.01em; }
+  .call .sub { color:var(--dim); font-size:14.5px; margin-top:5px; }
+  section.pass { background:var(--green-bg); border-color:var(--green-line); }
+  section.pass .mk, section.pass .hd { color:var(--green); }
+  section.fail { background:var(--red-bg); border-color:var(--red-line); }
+  section.fail .mk, section.fail .hd { color:var(--red); }
+
+  .nums { display:flex; gap:44px; margin-top:20px; padding-top:18px; border-top:1px solid var(--red-line); }
+  .nums .k { font-size:11.5px; color:var(--dim); letter-spacing:.04em; margin-bottom:4px; }
+  .nums .v { font:700 30px/1 var(--mono); letter-spacing:-.02em; }
+  .nums .want .v { color:var(--green); }
+  .nums .got .v { color:var(--red); }
+
+  .guess { font-size:15.5px; }
+  .guess .why { color:var(--dim); font-size:14.5px; margin-top:9px; }
+  pre.code {
+    margin:0; padding:15px 17px; background:var(--bg); border:1px solid var(--line-soft);
+    border-radius:10px; overflow-x:auto; font:12.5px/1.75 var(--mono); color:var(--ink);
+    max-height:300px;
+  }
+  .meta { color:var(--faint); font-size:13px; margin-top:12px; }
+  .meta a { color:var(--ink); }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <h1>Collider</h1>
-    <span class="chip">DAYTONA × NOSANA × DNSIMPLE</span>
-  </header>
-  <p class="sub">CI는 이 PR이 <b>오늘의 main</b>과 맞는지만 봅니다. 곧 머지될 다른 PR과 함께 있어도 괜찮은지는 아무도 안 봅니다.</p>
+  <span class="badge">DAYTONA · NOSANA · DNSIMPLE</span>
+  <h1>합치면 깨지는 PR을<br>합치기 전에 찾습니다</h1>
+  <p class="lede">
+    CI는 이 PR이 <b>오늘의 main</b>과 맞는지만 봅니다.
+    곧 머지될 옆 PR과 함께 있어도 괜찮은지는 아무도 보지 않습니다.
+  </p>
 
   <form id="form">
     <input id="prA" placeholder="owner/repo#1" autocomplete="off" />
     <input id="prB" placeholder="owner/repo#2" autocomplete="off" />
     <button class="go" id="go" type="submit">충돌시키기</button>
   </form>
-  <div class="examples" id="examples">
+  <div class="try" id="try">
     <button type="button" data-a="currenjin/collider-demo#1" data-b="currenjin/collider-demo#2">
-      운임 정산 — 쿠폰 PR × 멤버십 PR
+      운임 정산: 쿠폰 PR × 멤버십 PR
     </button>
   </div>
 
   <div class="rail" id="rail">
-    <div class="seg"><div class="bar"></div>PR 수집</div>
-    <div class="seg"><div class="bar"></div>미래 머지</div>
-    <div class="seg"><div class="bar"></div>기존 테스트</div>
-    <div class="seg"><div class="bar"></div>테스트 생성</div>
-    <div class="seg"><div class="bar"></div>충돌 증명</div>
-    <div class="timer" id="timer">0.0s</div>
+    <div class="seg"><div class="bar"></div><div class="nm">PR 수집</div></div>
+    <div class="seg"><div class="bar"></div><div class="nm">미래 머지</div></div>
+    <div class="seg"><div class="bar"></div><div class="nm">기존 테스트</div></div>
+    <div class="seg"><div class="bar"></div><div class="nm">테스트 생성</div></div>
+    <div class="seg"><div class="bar"></div><div class="nm">충돌 증명</div></div>
+    <div class="clock" id="clock">0.0s</div>
   </div>
 
   <pre id="log"></pre>
 
-  <div class="card" id="cPrs"><h3>합쳐볼 두 PR</h3><div class="prs" id="prsBox"></div></div>
+  <section id="sPrs"><h2>합쳐볼 두 PR</h2><div class="prs" id="prsBox"></div></section>
 
-  <div class="card" id="cExisting">
-    <h3>합친 상태에서 기존 테스트</h3>
-    <div class="verdict"><div class="mark" id="exMark"></div><div>
-      <div class="big" id="exBig"></div>
-      <div class="note" id="exNote"></div>
-    </div></div>
-  </div>
-
-  <div class="card" id="cHyp">
-    <h3>AI 가설 — 어디서 겹치는가</h3>
-    <div class="hyp">
-      <div id="hypPoint"></div>
-      <div class="why" id="hypWhy"></div>
-      <div class="exp" id="hypExp"></div>
+  <section id="sExisting">
+    <h2>합친 상태에서 기존 테스트</h2>
+    <div class="call">
+      <div class="mk" id="exMk"></div>
+      <div><div class="hd" id="exHd"></div><div class="sub" id="exSub"></div></div>
     </div>
-  </div>
+  </section>
 
-  <div class="card" id="cTest">
-    <h3>생성된 상호작용 테스트 <span style="color:var(--dim);font-weight:400">— 이 레포에 없던 테스트입니다</span></h3>
+  <section id="sGuess">
+    <h2>어디서 겹치는가</h2>
+    <div class="guess"><div id="gPoint"></div><div class="why" id="gWhy"></div></div>
+  </section>
+
+  <section id="sTest">
+    <h2>생성한 상호작용 테스트</h2>
     <pre class="code" id="testCode"></pre>
-  </div>
+    <div class="meta">이 레포에 없던 테스트입니다. Nosana GPU가 두 PR의 diff와 명세 문서를 읽고 작성했습니다.</div>
+  </section>
 
-  <div class="card" id="cResult">
-    <h3>증명</h3>
-    <div class="verdict"><div class="mark" id="rsMark"></div><div>
-      <div class="big" id="rsBig"></div>
-      <div class="note" id="rsNote"></div>
-    </div></div>
-    <div class="nums" id="rsNums" style="display:none">
-      <div class="exp"><div class="k">명세상 기대</div><div class="v" id="rsExp">—</div></div>
-      <div class="act"><div class="k">실제</div><div class="v" id="rsAct">—</div></div>
+  <section id="sResult">
+    <h2>증명</h2>
+    <div class="call">
+      <div class="mk" id="rMk"></div>
+      <div><div class="hd" id="rHd"></div><div class="sub" id="rSub"></div></div>
     </div>
-    <div class="foot" id="rsFoot"></div>
-  </div>
+    <div class="nums" id="rNums" style="display:none">
+      <div class="want"><div class="k">명세상 기대</div><div class="v" id="rWant">—</div></div>
+      <div class="got"><div class="k">실제</div><div class="v" id="rGot">—</div></div>
+    </div>
+    <div class="meta" id="rMeta"></div>
+  </section>
 </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const form = $('form'), go = $('go'), rail = $('rail'), timerEl = $('timer'), logEl = $('log');
+const form = $('form'), go = $('go'), rail = $('rail'), clock = $('clock'), logEl = $('log');
 const segs = document.querySelectorAll('.seg');
+const PANELS = ['sPrs','sExisting','sGuess','sTest','sResult'];
 
-$('examples').addEventListener('click', (e) => {
+$('try').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
   $('prA').value = b.dataset.a; $('prB').value = b.dataset.b; form.requestSubmit();
 });
 
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-function line(t, cls){ const o=cls?`<${cls}>`:'' , c=cls?`</${cls}>`:''; logEl.insertAdjacentHTML('beforeend', o+esc(t)+c+'\n'); logEl.scrollTop=logEl.scrollHeight; }
-const show = (id) => $(id).classList.add('on');
-const hideAll = () => ['cPrs','cExisting','cHyp','cTest','cResult'].forEach((i)=>$(i).classList.remove('on'));
+function line(t, cls) {
+  const o = cls ? `<${cls}>` : '', c = cls ? `</${cls}>` : '';
+  logEl.insertAdjacentHTML('beforeend', o + esc(t) + c + '\n');
+  logEl.scrollTop = logEl.scrollHeight;
+}
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const prA = $('prA').value.trim(), prB = $('prB').value.trim();
   if (!prA || !prB) return;
 
-  go.disabled = true; logEl.textContent=''; logEl.classList.add('on');
-  rail.classList.add('on'); hideAll();
-  segs.forEach((s)=>s.classList.remove('on'));
+  go.disabled = true;
+  logEl.textContent = ''; logEl.classList.add('on');
+  rail.classList.add('on');
+  PANELS.forEach((p) => { $(p).classList.remove('on','pass','fail'); });
+  segs.forEach((s) => s.classList.remove('on'));
 
   const t0 = Date.now();
-  const tick = setInterval(()=>{ timerEl.textContent = ((Date.now()-t0)/1000).toFixed(1)+'s'; }, 100);
+  const tick = setInterval(() => { clock.textContent = ((Date.now()-t0)/1000).toFixed(1) + 's'; }, 100);
 
   try {
     const res = await fetch('/api/collide', {
@@ -202,68 +226,72 @@ form.addEventListener('submit', async (e) => {
     if (!res.body) throw new Error('스트림을 열 수 없습니다.');
     const reader = res.body.getReader(), dec = new TextDecoder();
     let buf = '';
-
     while (true) {
       const { done, value } = await reader.read(); if (done) break;
       buf += dec.decode(value, { stream:true });
       let i;
       while ((i = buf.indexOf('\n\n')) !== -1) {
         const chunk = buf.slice(0,i).trim(); buf = buf.slice(i+2);
-        if (!chunk.startsWith('data:')) continue;
-        handle(JSON.parse(chunk.slice(5).trim()));
+        if (chunk.startsWith('data:')) handle(JSON.parse(chunk.slice(5).trim()));
       }
     }
   } catch (err) {
-    line('✗ ' + (err?.message || err), 'i');
+    line('실패: ' + (err?.message || err), 'i');
   } finally {
     clearInterval(tick); go.disabled = false;
   }
 });
 
-function handle(m){
-  if (m.event === 'log') line('  ' + m.message);
-  else if (m.event === 'step') {
-    line(`[${m.index}/${m.total}] ${m.label}`, 'b');
-    segs.forEach((s,n)=>s.classList.toggle('on', n < m.index));
-  }
-  else if (m.event === 'prs') {
-    $('prsBox').innerHTML = [m.a, m.b].map((p) =>
-      `<div class="pr"><div class="n">#${p.number}</div><div class="t">${esc(p.title)}</div>
-       <div class="f">${p.files.map(esc).join('<br>')}</div></div>`).join('');
-    show('cPrs');
-  }
-  else if (m.event === 'existing') {
-    const ok = m.passed;
-    $('cExisting').className = 'card on ' + (ok ? 'pass' : 'fail');
-    $('exMark').textContent = ok ? '✓' : '✗';
-    $('exBig').textContent = ok ? `기존 테스트 ${m.total}개 전부 통과` : `${m.failed}/${m.total} 실패`;
-    $('exNote').textContent = ok
-      ? 'Merge Queue도 여기서 통과시킵니다. 이 상호작용을 커버하는 테스트가 없으니까요.'
-      : '텍스트 충돌이나 기존 테스트 실패는 기존 도구도 잡습니다.';
-  }
-  else if (m.event === 'hypothesis') {
-    $('hypPoint').textContent = m.collisionPoint;
-    $('hypWhy').textContent = m.reasoning;
-    $('hypExp').textContent = '명세상 기대: ' + m.expected;
-    show('cHyp');
-  }
-  else if (m.event === 'test') { $('testCode').textContent = m.content; show('cTest'); }
-  else if (m.event === 'error') line('✗ ' + m.message, 'i');
-  else if (m.event === 'done') {
-    const hit = m.collided;
-    $('cResult').className = 'card on ' + (hit ? 'fail' : 'pass');
-    $('rsMark').textContent = hit ? '✗' : '✓';
-    $('rsBig').textContent = hit ? '행동 충돌 증명됨' : '이 조합은 안전합니다';
-    $('rsNote').textContent = hit
-      ? '두 PR 모두 CI 초록. git 충돌 없음. 합친 기존 테스트도 초록. 그런데 함께 쓰면 명세와 다릅니다.'
-      : '생성한 상호작용 테스트도 통과했습니다.';
-    if (m.assertion?.expected || m.assertion?.actual) {
-      $('rsNums').style.display = 'flex';
-      $('rsExp').textContent = m.assertion.expected ?? '—';
-      $('rsAct').textContent = m.assertion.actual ?? '—';
+function handle(m) {
+  switch (m.event) {
+    case 'log': line('  ' + m.message); break;
+    case 'step':
+      line(`[${m.index}/${m.total}] ${m.label}`, 'b');
+      segs.forEach((s,n) => s.classList.toggle('on', n < m.index));
+      break;
+    case 'prs':
+      $('prsBox').innerHTML = [m.a, m.b].map((p) =>
+        `<div class="pr"><div class="n">#${p.number}</div><div class="t">${esc(p.title)}</div>
+         <div class="f">${p.files.map(esc).join('<br>')}</div></div>`).join('');
+      $('sPrs').classList.add('on');
+      break;
+    case 'existing': {
+      const ok = m.passed;
+      $('sExisting').className = 'on ' + (ok ? 'pass' : 'fail');
+      $('exMk').textContent = ok ? '✓' : '✕';
+      $('exHd').textContent = ok ? `기존 테스트 ${m.total}개 전부 통과` : `${m.failed}/${m.total} 실패`;
+      $('exSub').textContent = ok
+        ? 'GitHub Merge Queue도 여기서 통과시킵니다. 이 상호작용을 커버하는 테스트가 레포에 없습니다.'
+        : '텍스트 충돌이나 기존 테스트 실패는 GitHub Merge Queue도 잡습니다.';
+      break;
     }
-    $('rsFoot').innerHTML = (m.reportUrl ? `리포트: <a href="${m.reportUrl}" target="_blank">${esc(m.reportUrl)}</a> · ` : '')
-      + `${(m.elapsedMs/1000).toFixed(1)}초`;
+    case 'hypothesis':
+      $('gPoint').textContent = m.collisionPoint;
+      $('gWhy').textContent = m.reasoning;
+      $('sGuess').classList.add('on');
+      break;
+    case 'test':
+      $('testCode').textContent = m.content;
+      $('sTest').classList.add('on');
+      break;
+    case 'error': line('실패: ' + m.message, 'i'); break;
+    case 'done': {
+      const hit = m.collided;
+      $('sResult').className = 'on ' + (hit ? 'fail' : 'pass');
+      $('rMk').textContent = hit ? '✕' : '✓';
+      $('rHd').textContent = hit ? '행동 충돌을 증명했습니다' : '이 조합은 안전합니다';
+      $('rSub').textContent = hit
+        ? '두 PR 모두 CI 통과, git 충돌 없음, 합친 기존 테스트도 통과. 그런데 함께 쓰면 명세와 다릅니다.'
+        : '생성한 상호작용 테스트도 통과했습니다.';
+      if (m.assertion?.expected || m.assertion?.actual) {
+        $('rNums').style.display = 'flex';
+        $('rWant').textContent = m.assertion.expected ?? '—';
+        $('rGot').textContent = m.assertion.actual ?? '—';
+      }
+      $('rMeta').innerHTML = (m.reportUrl ? `리포트 <a href="${m.reportUrl}" target="_blank">${esc(m.reportUrl)}</a> · ` : '')
+        + `${(m.elapsedMs/1000).toFixed(1)}초`;
+      break;
+    }
   }
 }
 </script>
