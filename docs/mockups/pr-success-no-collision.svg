@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="500" viewBox="0 0 960 500">
+<rect width="960" height="500" rx="24" fill="#fff"/><rect x="1" y="1" width="958" height="498" rx="23" fill="none" stroke="#d0d7de"/>
+<text x="48" y="58" font-family="Arial" font-size="18" font-weight="700" fill="#24292f">COLLIDER · PR #42</text>
+<text x="48" y="118" font-family="Arial" font-size="30" font-weight="700" fill="#1a7f37">No future collision found</text>
+<text x="48" y="154" font-family="Arial" font-size="17" fill="#57606a">This PR passed all checked combinations.</text>
+<text x="48" y="214" font-family="Arial" font-size="13" fill="#57606a">CHECKED WITH</text>
+<text x="72" y="262" font-family="Arial" font-size="18" fill="#24292f">#31 Add coupon</text><text x="860" y="262" text-anchor="end" font-family="Arial" font-size="20" font-weight="700" fill="#1a7f37">✓</text>
+<text x="72" y="310" font-family="Arial" font-size="18" fill="#24292f">#37 Add membership</text><text x="860" y="310" text-anchor="end" font-family="Arial" font-size="20" font-weight="700" fill="#1a7f37">✓</text>
+<text x="72" y="358" font-family="Arial" font-size="18" fill="#24292f">#41 Add VAT</text><text x="860" y="358" text-anchor="end" font-family="Arial" font-size="20" font-weight="700" fill="#1a7f37">✓</text>
+<text x="48" y="430" font-family="Arial" font-size="15" font-weight="700" fill="#24292f">3 / 3 combinations passed</text>
+<text x="912" y="466" text-anchor="end" font-family="Arial" font-size="12" fill="#57606a">No collision found in checked combinations</text>
+</svg>
