@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="500" viewBox="0 0 960 500">
+<rect width="960" height="500" rx="24" fill="#fff"/><rect x="1" y="1" width="958" height="498" rx="23" fill="none" stroke="#d0d7de"/>
+<text x="48" y="58" font-family="Arial" font-size="18" font-weight="700" fill="#24292f">COLLIDER · PR #42</text>
+<text x="48" y="118" font-family="Arial" font-size="30" font-weight="700" fill="#cf222e">Behavioral regression</text>
+<text x="48" y="154" font-family="Arial" font-size="17" fill="#57606a">Combining this PR with #37 changes the final customer price.</text>
+<rect x="48" y="204" width="392" height="118" rx="14" fill="#f6f8fa"/>
+<text x="72" y="238" font-family="Arial" font-size="12" fill="#57606a">EXPECTED</text>
+<text x="72" y="292" font-family="Arial" font-size="34" font-weight="700" fill="#1a7f37">₩8,000</text>
+<rect x="472" y="204" width="392" height="118" rx="14" fill="#fff1f0"/>
+<text x="496" y="238" font-family="Arial" font-size="12" fill="#57606a">ACTUAL</text>
+<text x="496" y="292" font-family="Arial" font-size="34" font-weight="700" fill="#cf222e">₩8,100</text>
+<text x="48" y="382" font-family="Arial" font-size="13" fill="#57606a">Conflicting PR</text>
+<text x="160" y="382" font-family="Arial" font-size="17" font-weight="700" fill="#24292f">#37 Add membership discount</text>
+<text x="48" y="432" font-family="Arial" font-size="13" fill="#57606a">Existing tests</text><text x="160" y="432" font-family="Arial" font-size="17" font-weight="700" fill="#1a7f37">✓ 12 / 12 passed</text>
+</svg>
