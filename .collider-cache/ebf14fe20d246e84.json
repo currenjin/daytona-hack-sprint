@@ -1,4 +1,0 @@
-{
-  "path": "test/_collider_interaction.test.ts",
-  "content": "import { describe, expect, it } from 'vitest'\nimport { calculate } from '../src/priceCalculator.js'\n\ndescribe('calculate', () => {\n  it('쿠폰과 멤버십 할인이 모두 적용되더라도 기본 운임 기준으로 할인 계산 후 합산하여 차감한다.', () => {\n    expect(\n      calculate({ id: 'o3', basePrice: 10000, couponAmount: 500, membershipRate: 0.9 })\n    ).toBe(8450)\n  })\n})\n"
-}
