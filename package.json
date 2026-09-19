@@ -1,0 +1,31 @@
+{
+  "name": "ship",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "프롬프트 한 줄 → 진짜 도메인에서 살아있는 웹앱 (Daytona HackSprint Seoul)",
+  "scripts": {
+    "dev": "tsx watch server.ts",
+    "start": "tsx server.ts",
+    "router": "node router/index.js",
+    "preflight": "tsx scripts/preflight.ts",
+    "test:sandbox": "tsx scripts/test-sandbox.ts",
+    "test:generate": "tsx scripts/test-generate.ts",
+    "test:publish": "tsx scripts/test-publish.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
+    "@daytona/sdk": "^0.214.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.10.1",
+    "@types/qrcode": "^1.5.5",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

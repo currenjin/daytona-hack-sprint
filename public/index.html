@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ship — 프롬프트에서 도메인까지</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14181d;
+    --line: #232a32;
+    --fg: #e8eaed;
+    --dim: #8b949e;
+    --accent: #5eead4;
+    --accent-dim: #2dd4bf;
+    --err: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.6 ui-sans-serif, -apple-system, "Apple SD Gothic Neo", "Pretendard", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+  .wrap { width: 100%; max-width: 760px; }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  h1 { font-size: 30px; margin: 0; letter-spacing: -0.02em; }
+  .tag { color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
+  .sub { color: var(--dim); margin: 0 0 28px; font-size: 14px; }
+
+  form { display: flex; gap: 10px; margin-bottom: 14px; }
+  input {
+    flex: 1; min-width: 0; padding: 15px 16px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    color: var(--fg); font-size: 16px; font-family: inherit;
+  }
+  input:focus { outline: none; border-color: var(--accent-dim); }
+  button {
+    padding: 15px 26px; border: 0; border-radius: 12px;
+    background: var(--accent); color: #062a26; font-size: 16px; font-weight: 700;
+    font-family: inherit; cursor: pointer; white-space: nowrap;
+  }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 30px; }
+  .examples button {
+    padding: 7px 13px; font-size: 13px; font-weight: 500; border-radius: 999px;
+    background: transparent; border: 1px solid var(--line); color: var(--dim);
+  }
+  .examples button:hover:not(:disabled) { border-color: var(--accent-dim); color: var(--accent); }
+
+  .status { display: none; gap: 14px; align-items: center; margin-bottom: 16px; }
+  .status.on { display: flex; }
+  .steps { display: flex; gap: 6px; flex: 1; }
+  .dot { flex: 1; height: 4px; border-radius: 2px; background: var(--line); transition: background .3s; }
+  .dot.on { background: var(--accent); }
+  .timer { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 700; font-size: 18px; }
+
+  pre#log {
+    display: none; margin: 0 0 24px; padding: 16px 18px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    max-height: 260px; overflow-y: auto;
+    font: 13px/1.75 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--dim); white-space: pre-wrap; word-break: break-all;
+  }
+  pre#log.on { display: block; }
+  pre#log b { color: var(--fg); font-weight: 500; }
+  pre#log i { color: var(--err); font-style: normal; }
+
+  #result { display: none; text-align: center; padding-top: 8px; }
+  #result.on { display: block; }
+  #result .title { color: var(--dim); font-size: 14px; margin-bottom: 10px; }
+  #result a.url {
+    display: inline-block; color: var(--accent); font-weight: 700;
+    font-size: clamp(20px, 5.2vw, 34px); word-break: break-all;
+    text-decoration: none; line-height: 1.3; margin-bottom: 22px;
+  }
+  #result a.url:hover { text-decoration: underline; }
+  #result img { width: min(300px, 78vw); border-radius: 16px; background: #fff; padding: 12px; }
+  #result .hint { color: var(--dim); font-size: 14px; margin-top: 16px; }
+  #result .review { color: var(--dim); font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Ship</h1>
+    <span class="tag">DAYTONA × DNSIMPLE × NOSANA</span>
+  </header>
+  <p class="sub">한 줄이면 됩니다. 에이전트가 만들고, 실행하고, 진짜 인터넷 주소를 붙입니다.</p>
+
+  <form id="form">
+    <input id="prompt" placeholder="예: 홍대 라멘집 리뷰 사이트" autocomplete="off" />
+    <button id="go" type="submit">Ship</button>
+  </form>
+
+  <div class="examples" id="examples">
+    <button type="button">홍대 라멘집 리뷰 사이트</button>
+    <button type="button">팀 회고 투표 페이지</button>
+    <button type="button">실시간 사다리타기</button>
+  </div>
+
+  <div class="status" id="status">
+    <div class="steps">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <div class="timer" id="timer">0.0s</div>
+  </div>
+
+  <pre id="log"></pre>
+
+  <div id="result">
+    <div class="title" id="rTitle"></div>
+    <a class="url" id="rUrl" href="#" target="_blank" rel="noopener"></a>
+    <div><img id="rQr" alt="QR code" /></div>
+    <div class="hint">휴대폰으로 QR을 찍어보세요.</div>
+    <div class="review" id="rReview"></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const form = $('form'), promptEl = $('prompt'), goBtn = $('go');
+const statusEl = $('status'), timerEl = $('timer'), logEl = $('log');
+const dots = document.querySelectorAll('.dot');
+const resultEl = $('result');
+
+$('examples').addEventListener('click', (e) => {
+  if (e.target.tagName !== 'BUTTON') return;
+  promptEl.value = e.target.textContent;
+  form.requestSubmit();
+});
+
+function line(text, cls) {
+  const tag = cls ? `<${cls}>` : '';
+  const end = cls ? `</${cls}>` : '';
+  logEl.insertAdjacentHTML('beforeend', tag + escapeHtml(text) + end + '\n');
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function escapeHtml(s) {
+  return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const prompt = promptEl.value.trim();
+  if (!prompt) return;
+
+  goBtn.disabled = true;
+  logEl.textContent = '';
+  logEl.classList.add('on');
+  statusEl.classList.add('on');
+  resultEl.classList.remove('on');
+  dots.forEach((d) => d.classList.remove('on'));
+
+  const t0 = Date.now();
+  const tick = setInterval(() => {
+    timerEl.textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's';
+  }, 100);
+
+  try {
+    const res = await fetch('/api/ship', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    if (!res.body) throw new Error('스트림을 열 수 없습니다.');
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+
+      let i;
+      while ((i = buf.indexOf('\n\n')) !== -1) {
+        const chunk = buf.slice(0, i).trim();
+        buf = buf.slice(i + 2);
+        if (!chunk.startsWith('data:')) continue;
+
+        const msg = JSON.parse(chunk.slice(5).trim());
+        if (msg.event === 'log') line('  ' + msg.message);
+        else if (msg.event === 'step') {
+          line(`[${msg.index}/${msg.total}] ${msg.label}`, 'b');
+          dots.forEach((d, n) => d.classList.toggle('on', n < msg.index));
+        } else if (msg.event === 'title') $('rTitle').textContent = msg.title;
+        else if (msg.event === 'error') line('✗ ' + msg.message, 'i');
+        else if (msg.event === 'done') {
+          clearInterval(tick);
+          timerEl.textContent = (msg.elapsedMs / 1000).toFixed(1) + 's';
+          $('rUrl').textContent = msg.url.replace(/^https?:\/\//, '');
+          $('rUrl').href = msg.url;
+          $('rQr').src = msg.qr;
+          $('rReview').textContent = msg.review ? '검수: ' + msg.review : '';
+          resultEl.classList.add('on');
+        }
+      }
+    }
+  } catch (err) {
+    line('✗ ' + (err && err.message ? err.message : String(err)), 'i');
+  } finally {
+    clearInterval(tick);
+    goBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
