@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="500" viewBox="0 0 960 500">
+<rect width="960" height="500" rx="24" fill="#fff"/><rect x="1" y="1" width="958" height="498" rx="23" fill="none" stroke="#d0d7de"/>
+<text x="48" y="58" font-family="Arial" font-size="18" font-weight="700" fill="#24292f">COLLIDER · PR #42</text>
+<text x="48" y="116" font-family="Arial" font-size="28" font-weight="700" fill="#24292f">Collider found what existing CI missed</text>
+<rect x="48" y="168" width="864" height="66" rx="12" fill="#f0fff4" stroke="#b7ebc6"/>
+<text x="72" y="208" font-family="Arial" font-size="18" fill="#24292f">PR #42 alone</text><text x="860" y="208" text-anchor="end" font-family="Arial" font-size="20" font-weight="700" fill="#1a7f37">✓ CI passed</text>
+<rect x="48" y="252" width="864" height="66" rx="12" fill="#fff1f0" stroke="#ffcecb"/>
+<text x="72" y="292" font-family="Arial" font-size="18" fill="#24292f">PR #42 + #37</text><text x="860" y="292" text-anchor="end" font-family="Arial" font-size="20" font-weight="700" fill="#cf222e">✕ interaction failed</text>
+<text x="48" y="372" font-family="Arial" font-size="13" fill="#57606a">OBSERVED BEHAVIOR</text>
+<text x="48" y="414" font-family="Arial" font-size="28" font-weight="700" fill="#24292f">₩8,000 expected → ₩8,100 actual</text>
+<text x="48" y="458" font-family="Arial" font-size="14" fill="#57606a">Git merge ✓ · Existing tests ✓ 12/12 · Collider ✕</text>
+</svg>
