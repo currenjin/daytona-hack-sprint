@@ -1,0 +1,5 @@
+{
+  "collisionPoint": "quote() 함수에서 calculate() 결과에 멤버십 할인이 연쇄 적용됨",
+  "reasoning": "PR#1 은 쿠폰으로 basePrice 를 먼저 차감하고 PR#2 는 그 결과를 membershipRate 로 다시 계산하므로, 두 할인 모두 원가 기준이 아닌 중간값을 기반으로 적용됩니다.",
+  "expected": 8000
+}

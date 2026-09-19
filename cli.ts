@@ -58,7 +58,9 @@ function toPrReport(r: CollisionReport, currentPr: { number: number; title: stri
 
   // 충돌이 여러 개여도 코멘트에는 하나만 보여 준다. 읽는 사람이 먼저 할 일은
   // 하나를 확인하는 것이지 목록을 훑는 것이 아니다.
-  const first = r.collisions[0]
+  // 검사 순서는 gh pr list 가 정하므로 실행마다 달라진다. 번호가 작은 쪽을
+  // 먼저 보여 줘야 같은 PR 이 항상 같은 코멘트를 받는다.
+  const first = [...r.collisions].sort((a, b) => Math.min(...a.prs) - Math.min(...b.prs))[0]
   const other = first?.prs.find((n) => n !== currentPr.number)
 
   const existing = r.combinations.find((c) => c.existing)?.existing

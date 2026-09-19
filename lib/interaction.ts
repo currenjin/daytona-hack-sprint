@@ -251,19 +251,34 @@ ${active}
 
 {"input":{"id":"x","basePrice":10000},"expected":0,"why":"계산 근거 한 줄"}`
 
+  // 기대값은 모델이 명세를 읽고 직접 계산한 숫자다. 한 번만 물으면 산술이
+  // 틀린 채로 통과해서 멀쩡한 조합이 충돌로 잡힌다. 실제로 모든 조합이
+  // 충돌로 나온 적이 있다. 같은 질문을 여러 번 던져 같은 답이 두 번 나올
+  // 때만 쓴다. 답이 흔들리면 충돌이라고 말하지 않고 판정을 보류한다.
+  const votes: Scenario[] = []
   let lastErr = ''
-  for (let attempt = 1; attempt <= 3; attempt++) {
+
+  for (let attempt = 1; attempt <= 4; attempt++) {
     try {
-      const scenario = parseScenario(await chat(prompt, onLog))
-      onLog(`시나리오 ${JSON.stringify(scenario.input)} → ${entry.fn}() 기대값 ${scenario.expected}`)
-      if (scenario.why) onLog(`근거: ${scenario.why}`)
-      return { path: TEST_PATH, content: renderTest(entry, scenario, prs) }
+      const s = parseScenario(await chat(prompt, onLog))
+      votes.push(s)
+      onLog(`${attempt}차 기대값 ${s.expected}${s.why ? ` (${s.why})` : ''}`)
+
+      const agreed = votes.filter((v) => v.expected === s.expected)
+      if (agreed.length >= 2) {
+        onLog(`기대값 ${s.expected} 에 ${agreed.length}표. ${entry.fn}() 로 검사합니다`)
+        return { path: TEST_PATH, content: renderTest(entry, s, prs) }
+      }
     } catch (err) {
       lastErr = err instanceof Error ? err.message : String(err)
       onLog(`${attempt}차 생성 실패: ${lastErr}. 다시 시도합니다`)
     }
   }
-  throw new Error(`세 번 시도했으나 쓸 만한 시나리오를 얻지 못했습니다: ${lastErr}`)
+
+  if (votes.length === 0) throw new Error(`쓸 만한 시나리오를 얻지 못했습니다: ${lastErr}`)
+  throw new Error(
+    `기대값이 ${votes.map((v) => v.expected).join(', ')} 로 흔들려 판정을 보류합니다`,
+  )
 }
 
 type Scenario = { input: Record<string, unknown>; expected: number; why?: string }
