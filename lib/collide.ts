@@ -1,4 +1,5 @@
-import { Daytona, type Sandbox } from '@daytona/sdk'
+import type { Sandbox } from '@daytona/sdk'
+import { daytona as newDaytona } from './daytona.js'
 import type { Log } from './generate.js'
 import type { PullRequest } from './github.js'
 import type { InteractionTest } from './interaction.js'
@@ -16,8 +17,15 @@ async function run(sandbox: Sandbox, cmd: string) {
   return sandbox.process.executeCommand(`cd ${WORK} && ${cmd}`)
 }
 
+/** 터미널 색상 코드를 걷어낸다. 안 하면 테스트 결과 파싱이 통째로 빗나간다. */
+export function stripAnsi(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/\u001b\[[0-9;]*m/g, '')
+}
+
 /** vitest / jest 출력에서 통과·실패 수를 뽑는다. */
-function parseTestOutput(output: string): Omit<TestRun, 'output'> {
+function parseTestOutput(raw: string): Omit<TestRun, 'output'> {
+  const output = stripAnsi(raw)
   const m = output.match(/Tests\s+(?:(\d+)\s+failed\s*\|\s*)?(\d+)\s+passed/i)
   if (m) {
     const failed = Number(m[1] ?? 0)
@@ -43,7 +51,7 @@ export async function mergeFutures(
   b: PullRequest,
   onLog: Log,
 ): Promise<{ collider: Collider; mergedCleanly: boolean }> {
-  const daytona = new Daytona()
+  const daytona = newDaytona()
 
   onLog('Daytona 샌드박스 부팅...')
   const sandbox = await daytona.create(
@@ -92,7 +100,7 @@ export async function mergeFutures(
 export async function runExistingTests(c: Collider, onLog: Log): Promise<TestRun> {
   onLog('기존 테스트 실행...')
   const res = await run(c.sandbox, 'npm test 2>&1 | tail -40')
-  const output = String(res.result ?? '')
+  const output = stripAnsi(String(res.result ?? ''))
   const parsed = parseTestOutput(output)
   onLog(
     parsed.passed
@@ -122,7 +130,7 @@ export async function runInteractionTest(
 
   onLog('상호작용 테스트 실행...')
   const res = await run(c.sandbox, `npm test 2>&1 | tail -60`)
-  const output = String(res.result ?? '')
+  const output = stripAnsi(String(res.result ?? ''))
   const parsed = parseTestOutput(output)
 
   onLog(

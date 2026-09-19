@@ -3,7 +3,8 @@
  *   npm run preflight
  */
 import 'dotenv/config'
-import { Daytona } from '@daytona/sdk'
+import { daytona as newDaytona } from '../lib/daytona.js'
+import { stripAnsi } from '../lib/collide.js'
 import { fetchPr, findSpec } from '../lib/github.js'
 
 const env = (k: string) => process.env[k] || ''
@@ -22,7 +23,7 @@ const checks: Check[] = [
     name: 'Daytona — 샌드박스 + 클론 + npm install 속도',
     run: async () => {
       if (!env('DAYTONA_API_KEY')) throw new Error('DAYTONA_API_KEY 미설정')
-      const daytona = new Daytona()
+      const daytona = newDaytona()
       const t0 = Date.now()
       const sandbox = await daytona.create(
         {
@@ -47,7 +48,7 @@ const checks: Check[] = [
         'cd /tmp/r && npm install --silent --no-audit --no-fund 2>&1 | tail -2 && npm test 2>&1 | tail -4',
       )
       const testMs = Date.now() - t2
-      const out = String(inst.result ?? '')
+      const out = stripAnsi(String(inst.result ?? ''))
 
       await daytona.delete(sandbox).catch(() => {})
 
