@@ -13,6 +13,28 @@ import { makeSlug } from './lib/slug.js'
 const here = dirname(fileURLToPath(import.meta.url))
 const app = express()
 
+/**
+ * SDK 내부 에러를 데모 중에 읽고 바로 손쓸 수 있는 한 줄로 바꾼다.
+ * 심사위원 앞에서 영문 스택트레이스가 뜨는 것만은 피한다.
+ */
+function friendly(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err)
+
+  if (/authentication method|api[_ ]?key/i.test(raw)) {
+    if (!process.env.ANTHROPIC_API_KEY) return '.env 의 ANTHROPIC_API_KEY 가 비어 있습니다.'
+    if (!process.env.DAYTONA_API_KEY) return '.env 의 DAYTONA_API_KEY 가 비어 있습니다.'
+    return 'API 키 인증에 실패했습니다. .env 를 확인하세요.'
+  }
+  if (/401|unauthorized/i.test(raw)) return 'API 키가 거부됐습니다 (401). 키가 만료됐는지 확인하세요.'
+  if (/429|rate.?limit/i.test(raw)) return '요청 한도에 걸렸습니다. 30초 뒤 다시 시도하세요.'
+  if (/ENOTFOUND|ECONNREFUSED|fetch failed|network/i.test(raw)) {
+    return '네트워크 연결이 끊겼습니다. 테더링으로 바꾸고 다시 시도하세요.'
+  }
+  if (/timeout|timed out/i.test(raw)) return '외부 서비스 응답이 너무 느립니다. 다시 시도하세요.'
+
+  return raw.split('\n')[0]!.slice(0, 160)
+}
+
 app.use(express.json({ limit: '1mb' }))
 app.use(express.static(join(here, 'public')))
 
@@ -79,14 +101,23 @@ app.post('/api/ship', async (req, res) => {
     })
   } catch (err) {
     clearTimeout(timeout)
-    const message = err instanceof Error ? err.message : String(err)
-    console.error('[ship]', err)
-    send('error', { message })
+    console.error('[ship]', err) // 전체 스택은 터미널에만, 화면에는 한 줄만
+    send('error', { message: friendly(err) })
   } finally {
     res.end()
   }
 })
 
 app.listen(PORT, () => {
-  console.log(`\n  Ship → http://localhost:${PORT}\n`)
+  console.log(`\n  Ship → http://localhost:${PORT}`)
+
+  // 데모 5분 전에 키가 빠진 걸 발견하는 사태를 막는다.
+  const missing = (['ANTHROPIC_API_KEY', 'DAYTONA_API_KEY'] as const).filter((k) => !process.env[k])
+  if (missing.length) {
+    console.log(`  ⚠️  필수 키 없음: ${missing.join(', ')} — .env 를 확인하세요`)
+  }
+  if (!process.env.DNSIMPLE_ZONE) {
+    console.log('  ℹ️  DNSIMPLE_ZONE 미설정 — Daytona preview URL로 폴백합니다')
+  }
+  console.log()
 })

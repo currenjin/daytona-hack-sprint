@@ -12,7 +12,8 @@
     "test:sandbox": "tsx scripts/test-sandbox.ts",
     "test:generate": "tsx scripts/test-generate.ts",
     "test:publish": "tsx scripts/test-publish.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "e2e": "tsx scripts/e2e-offline.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",
