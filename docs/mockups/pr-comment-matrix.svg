@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560">
+<rect width="960" height="560" rx="24" fill="#ffffff"/>
+<rect x="1" y="1" width="958" height="558" rx="23" fill="none" stroke="#d0d7de"/>
+<text x="48" y="58" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#24292f">COLLIDER</text>
+<text x="48" y="108" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#24292f">Future Collision Matrix</text>
+<text x="48" y="138" font-family="Arial, sans-serif" font-size="15" fill="#57606a">See which green PRs become unsafe together.</text>
+
+<rect x="48" y="176" width="864" height="238" rx="16" fill="#f6f8fa" stroke="#d8dee4"/>
+<text x="210" y="218" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#57606a">#31</text>
+<text x="370" y="218" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#57606a">#37</text>
+<text x="530" y="218" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#57606a">#42</text>
+<text x="690" y="218" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#57606a">ALL</text>
+
+<text x="88" y="278" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#24292f">#31</text>
+<text x="88" y="330" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#24292f">#37</text>
+<text x="88" y="382" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#24292f">#42</text>
+
+<circle cx="375" cy="272" r="16" fill="#1a7f37"/><text x="375" y="278" text-anchor="middle" font-family="Arial" font-size="14" font-weight="700" fill="#fff">✓</text>
+<circle cx="535" cy="272" r="16" fill="#1a7f37"/><text x="535" y="278" text-anchor="middle" font-family="Arial" font-size="14" font-weight="700" fill="#fff">✓</text>
+<circle cx="535" cy="324" r="16" fill="#cf222e"/><text x="535" y="330" text-anchor="middle" font-family="Arial" font-size="14" font-weight="700" fill="#fff">✕</text>
+<circle cx="695" cy="324" r="16" fill="#cf222e"/><text x="695" y="330" text-anchor="middle" font-family="Arial" font-size="14" font-weight="700" fill="#fff">✕</text>
+
+<text x="48" y="468" font-family="Arial, sans-serif" font-size="13" fill="#57606a">SELECTED COLLISION</text>
+<text x="48" y="500" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#cf222e">#37 + #42</text>
+<text x="190" y="500" font-family="Arial, sans-serif" font-size="16" fill="#57606a">Existing CI ✓ 12/12   ·   Generated interaction ✕</text>
+<text x="912" y="500" text-anchor="end" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#24292f">₩8,000 → ₩8,100</text>
+<text x="912" y="530" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#57606a">Daytona runtime evidence</text>
+</svg>
