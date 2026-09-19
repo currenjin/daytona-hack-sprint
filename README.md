@@ -6,6 +6,8 @@ CI는 이 PR이 오늘의 main과 맞는지만 검사합니다. 곧 머지될 �
 
 > Daytona HackSprint Seoul · 2026-09-19
 
+발표 자료: [Collider_Deck.pdf](docs/Collider_Deck.pdf)
+
 ## 문제
 
 ```
