@@ -221,44 +221,116 @@ export async function writeInteractionTest(
   sourceFiles: string[],
   onLog: Log,
 ): Promise<InteractionTest> {
-  onLog('상호작용 테스트 작성 중...')
+  onLog('상호작용 시나리오 작성 중...')
 
-  // 프롬프트가 길고 규칙이 많으면 사고형 모델이 규칙을 두고 계속 고민만 하다
-  // 토큰을 다 쓴다. 짧게 유지한다.
-  const fields = prs.map((p) => addedIdentifiers(p.diff)[0]).filter(Boolean).join(', ')
-  const touchedFiles = [...new Set(prs.flatMap((p) => p.files))].filter((f) => !/(test|spec)\./.test(f))
-  const touched = touchedFiles.join(', ')
-  const entries = [...new Set(prs.flatMap((p) => exportedFns(p.diff)))]
+  // 모델에게 테스트 파일을 통째로 쓰게 하면 import 경로, 호출 함수, 케이스 개수,
+  // 사고 산문 혼입이 전부 변수가 된다. CI 에서 여섯 번 연속 파싱에 실패했다.
+  // 모델은 입력과 기대값만 정하고, 파일은 여기서 만든다.
+  const touchedFiles = [...new Set(prs.flatMap((p) => p.files))].filter(
+    (f) => !/(test|spec)\./.test(f),
+  )
+  const entry = pickEntry(prs, touchedFiles, sourceFiles)
+  const active = prs.map((p) => `- ${p.title} (${p.files.join(', ')})`).join('\n')
 
-  const prompt = `## 이 저장소의 기존 테스트 (호출 형태를 그대로 따를 것)
+  const prompt = `## 명세
+${spec.slice(0, 1200)}
+
+## 이 저장소의 기존 테스트 (입력 형태 참고)
 ${sampleTest.split('\n').slice(0, 16).join('\n')}
 
-## 명세
-${spec.slice(0, 900)}
+## 상황
+함수 ${entry.fn}() 를 호출한다. 지금 구현된 기능은 아래뿐이다.
+${active}
+
+위 목록에 있는 기능은 전부 이미 동작한다. 기대값은 그 기능을 모두 거친 최종 값이다.
+목록에 없는 기능만 아직 코드에 없으므로 기대값에 넣지 말 것.
 
 ## 할 일
-위 스타일로 vitest 테스트 파일 하나를 작성하세요.
+위 기능을 모두 함께 쓰는 입력 하나를 정하고, 명세대로 계산한 기대값을 구하라.
+아래 JSON 한 덩어리만 출력하라. 설명 금지.
 
-- it() 은 정확히 하나
-- 입력 객체에 ${fields} 를 모두 의미 있는 값으로 넣을 것
-- 이번에 바뀐 파일은 ${touched} 뿐이고, 호출할 함수는 ${entries.join(' 또는 ')} 중 하나다
-- 위에 없는 함수는 호출하지 말 것. 다른 파일의 기능은 아직 구현되지 않았으니 기대값에도 넣지 말 것
-- 기대값은 명세를 따라 숫자로
+{"input":{"id":"x","basePrice":10000},"expected":0,"why":"계산 근거 한 줄"}`
 
-코드만 출력하세요.`
-
-  let raw = ''
   let lastErr = ''
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      raw = await chat(prompt, onLog)
-      return buildTest(raw, prs, sourceFiles, onLog)
+      const scenario = parseScenario(await chat(prompt, onLog))
+      onLog(`시나리오 ${JSON.stringify(scenario.input)} → ${entry.fn}() 기대값 ${scenario.expected}`)
+      if (scenario.why) onLog(`근거: ${scenario.why}`)
+      return { path: TEST_PATH, content: renderTest(entry, scenario, prs) }
     } catch (err) {
       lastErr = err instanceof Error ? err.message : String(err)
       onLog(`${attempt}차 생성 실패: ${lastErr}. 다시 시도합니다`)
     }
   }
-  throw new Error(`세 번 시도했으나 쓸 만한 테스트를 얻지 못했습니다: ${lastErr}`)
+  throw new Error(`세 번 시도했으나 쓸 만한 시나리오를 얻지 못했습니다: ${lastErr}`)
+}
+
+type Scenario = { input: Record<string, unknown>; expected: number; why?: string }
+
+/** 모델 출력에서 균형 잡힌 JSON 한 덩어리를 꺼낸다. 앞뒤 사고 산문은 버린다. */
+export function parseScenario(raw: string): Scenario {
+  const cleaned = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```(?:json)?/g, '')
+
+  // 사고 텍스트 안에도 중괄호가 섞여 나온다. 마지막에 나온 완결된 객체가 최종안이다.
+  for (let start = cleaned.lastIndexOf('{'); start !== -1; start = cleaned.lastIndexOf('{', start - 1)) {
+    let depth = 0
+    for (let i = start; i < cleaned.length; i++) {
+      if (cleaned[i] === '{') depth++
+      else if (cleaned[i] === '}' && --depth === 0) {
+        try {
+          const o = JSON.parse(cleaned.slice(start, i + 1)) as Scenario
+          if (o?.input && typeof o.expected === 'number' && Number.isFinite(o.expected)) return o
+        } catch {
+          /* 다음 후보로 */
+        }
+        break
+      }
+    }
+  }
+  throw new Error('input 과 expected 를 담은 JSON 을 찾지 못했습니다')
+}
+
+/**
+ * 어느 함수를 호출할지는 모델이 아니라 여기서 정한다.
+ *
+ * 모델은 바깥 계층 대신 방금 바뀐 안쪽 함수를 부르곤 한다. 그러면 다른 PR 의
+ * 기능이 실행되지 않아 상호작용을 검사하지 못한다. 다른 것을 부르는 쪽을 고른다.
+ */
+export function pickEntry(
+  prs: PullRequest[],
+  touched: string[],
+  sourceFiles: string[],
+): { fn: string; from: string } {
+  const rank = (f: string) => (/invoice/i.test(f) ? 3 : /service/i.test(f) ? 2 : 1)
+
+  const cands = prs.flatMap((p) => {
+    const file = p.files.find((f) => !/(test|spec)\./.test(f))
+    return file ? exportedFns(p.diff).map((fn) => ({ fn, from: file })) : []
+  })
+
+  if (cands.length === 0) {
+    const from = [...touched, ...sourceFiles].sort((a, b) => rank(b) - rank(a))[0] ?? 'src/index.ts'
+    return { fn: 'quote', from }
+  }
+  return cands.sort((a, b) => rank(b.from) - rank(a.from))[0]!
+}
+
+/** 값만 받아 테스트 파일을 만든다. 경로와 형식은 코드가 정하므로 흔들리지 않는다. */
+function renderTest(entry: { fn: string; from: string }, s: Scenario, prs: PullRequest[]): string {
+  const rel = `../${entry.from.replace(/\.tsx?$/, '.js')}`
+  const names = prs.map((p) => `#${p.number}`).join(' + ')
+  const why = s.why ? `    // ${s.why.replace(/\s+/g, ' ').slice(0, 120)}\n` : ''
+
+  return `import { describe, expect, it } from 'vitest'
+import { ${entry.fn} } from '${rel}'
+
+describe('${names} 상호작용', () => {
+  it('두 변경을 함께 쓰면 명세대로 동작한다', () => {
+${why}    expect(${entry.fn}(${JSON.stringify(s.input)})).toBe(${s.expected})
+  })
+})
+`
 }
 
 /** 모델 출력에서 테스트 파일을 꺼내 검증한다. */
