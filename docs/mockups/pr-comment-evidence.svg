@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560">
+<rect width="960" height="560" rx="24" fill="#ffffff"/>
+<rect x="1" y="1" width="958" height="558" rx="23" fill="none" stroke="#d0d7de"/>
+<text x="48" y="58" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#24292f">COLLIDER</text>
+<text x="912" y="58" text-anchor="end" font-family="Arial, sans-serif" font-size="14" fill="#57606a">#42 × #37</text>
+<text x="48" y="110" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#cf222e">Behavioral collision</text>
+
+<text x="48" y="164" font-family="Arial, sans-serif" font-size="13" fill="#57606a">1  SPECIFICATION</text>
+<rect x="48" y="182" width="864" height="74" rx="12" fill="#f6f8fa" stroke="#d8dee4"/>
+<text x="72" y="214" font-family="Arial, sans-serif" font-size="15" fill="#24292f">Each discount is calculated from the base fare, then combined.</text>
+<text x="72" y="239" font-family="Arial, sans-serif" font-size="12" fill="#57606a">SPEC.md</text>
+
+<text x="48" y="300" font-family="Arial, sans-serif" font-size="13" fill="#57606a">2  GENERATED ASSERTION</text>
+<rect x="48" y="318" width="864" height="68" rx="12" fill="#0d1117"/>
+<text x="72" y="360" font-family="monospace" font-size="18" fill="#e6edf3">expect(quote(order)).toBe(8000)</text>
+
+<text x="48" y="430" font-family="Arial, sans-serif" font-size="13" fill="#57606a">3  DAYTONA RUNTIME</text>
+<rect x="48" y="448" width="414" height="72" rx="12" fill="#f0fff4" stroke="#b7ebc6"/>
+<text x="72" y="477" font-family="Arial, sans-serif" font-size="12" fill="#57606a">EXPECTED</text>
+<text x="72" y="506" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1a7f37">₩8,000</text>
+
+<rect x="498" y="448" width="414" height="72" rx="12" fill="#fff1f0" stroke="#ffcecb"/>
+<text x="522" y="477" font-family="Arial, sans-serif" font-size="12" fill="#57606a">ACTUAL</text>
+<text x="522" y="506" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#cf222e">₩8,100</text>
+</svg>
