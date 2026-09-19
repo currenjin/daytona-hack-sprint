@@ -93,7 +93,6 @@ app.post('/api/collide', async (req, res) => {
     const { collider, baseRef } = await openSandbox(repo, log)
     dispose = collider.dispose
 
-    const sample = await readSampleTest(collider)
     const sourceFiles = await listSourceFiles(collider)
     const specText = spec?.content ?? ''
 
@@ -121,6 +120,11 @@ app.post('/api/collide', async (req, res) => {
         send('combo:done', { index: idx, verdict: 'existing-fail', note: '기존 테스트 실패' })
         continue
       }
+
+      const sample = await readSampleTest(
+        collider,
+        [...new Set(combo.prs.flatMap((p) => p.files))].filter((f) => !/(test|spec)\./.test(f)),
+      )
 
       // 기존 테스트가 통과할 때만 생성한다. 크레딧을 아끼는 자리다.
       // 한 조합의 생성이 실패해도 나머지 조합은 계속 검사한다.

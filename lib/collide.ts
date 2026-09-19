@@ -131,7 +131,15 @@ export async function runExistingTests(c: Collider, onLog: Log): Promise<TestRun
 }
 
 /** 기존 테스트 파일 하나를 샘플로 읽는다 (생성 테스트의 형식 참고용). */
-export async function readSampleTest(c: Collider): Promise<string> {
+export async function readSampleTest(c: Collider, prefer: string[] = []): Promise<string> {
+  // 이번 조합이 건드린 소스에 대응하는 테스트를 고른다. 엉뚱한 파일을 주면
+  // 모델이 그 파일의 함수를 호출하려 든다.
+  for (const f of prefer) {
+    const base = f.split('/').pop()!.replace(/\.(ts|js)$/, '')
+    const hit = await run(c.sandbox, `cat test/${base}.test.ts 2>/dev/null || true`)
+    const txt = String(hit.result ?? '').trim()
+    if (txt.length > 40) return txt
+  }
   const res = await run(
     c.sandbox,
     `find . -path ./node_modules -prune -o \\( -name '*.test.*' -o -name '*.spec.*' \\) -print | head -1 | xargs cat 2>/dev/null || true`,

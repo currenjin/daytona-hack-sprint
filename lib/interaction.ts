@@ -1,3 +1,4 @@
+import { Script } from 'node:vm'
 import { chat, type Log } from './generate.js'
 import type { PullRequest } from './github.js'
 
@@ -16,6 +17,11 @@ export type InteractionTest = {
 }
 
 const TEST_PATH = 'test/_collider_interaction.test.ts'
+
+/** diff 에 보이는 export 함수 이름. 테스트가 호출할 후보다. */
+export function exportedFns(diff: string): string[] {
+  return [...diff.matchAll(/export\s+function\s+([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]!)
+}
 
 /** diff 의 추가 줄에서 그 PR이 들여온 식별자를 뽑는다. */
 export function addedIdentifiers(diff: string): string[] {
@@ -84,6 +90,9 @@ export function keepInteractionCase(
 
   // 모든 PR 의 식별자가 한 케이스 안에 다 나와야 상호작용이다
   const usesAll = (c: string) => idsPerPr.every((ids) => ids.some((x) => c.includes(x)))
+
+  // 하나만 만들어 달라고 했고 하나만 왔으면 그대로 쓴다. 고를 것이 없다.
+  if (cases.length === 1) return { picked: `${head.trimEnd()}\n  ${cases[0]!.trim()}\n})\n`, dropped: 0 }
 
   const hit = cases.filter(usesAll)
   if (hit.length === 0) return null
@@ -214,32 +223,51 @@ export async function writeInteractionTest(
 ): Promise<InteractionTest> {
   onLog('상호작용 테스트 작성 중...')
 
-  const prompt = `두 PR이 함께 머지됐을 때의 상호작용을 검증하는 테스트를 작성하세요.
+  // 프롬프트가 길고 규칙이 많으면 사고형 모델이 규칙을 두고 계속 고민만 하다
+  // 토큰을 다 쓴다. 짧게 유지한다.
+  const fields = prs.map((p) => addedIdentifiers(p.diff)[0]).filter(Boolean).join(', ')
+  const touchedFiles = [...new Set(prs.flatMap((p) => p.files))].filter((f) => !/(test|spec)\./.test(f))
+  const touched = touchedFiles.join(', ')
+  const entries = [...new Set(prs.flatMap((p) => exportedFns(p.diff)))]
 
-## 충돌 가설
-겹치는 지점: ${hypothesis.collisionPoint}
-이유: ${hypothesis.reasoning}
-명세상 기대: ${hypothesis.expected}
+  const prompt = `## 이 저장소의 기존 테스트 (호출 형태를 그대로 따를 것)
+${sampleTest.split('\n').slice(0, 16).join('\n')}
 
 ## 명세
-${spec.slice(0, 2500)}
+${spec.slice(0, 900)}
 
-## 이 레포의 기존 테스트 (형식과 import 경로를 그대로 따를 것)
-${sampleTest.slice(0, 1500)}
+## 할 일
+위 스타일로 vitest 테스트 파일 하나를 작성하세요.
 
-${prs.map((p) => `## PR #${p.number} 변경\n${sourceDiff(p).slice(0, Math.floor(4500 / prs.length))}`).join('\n\n')}
+- it() 은 정확히 하나
+- 입력 객체에 ${fields} 를 모두 의미 있는 값으로 넣을 것
+- 이번에 바뀐 파일은 ${touched} 뿐이고, 호출할 함수는 ${entries.join(' 또는 ')} 중 하나다
+- 위에 없는 함수는 호출하지 말 것. 다른 파일의 기능은 아직 구현되지 않았으니 기대값에도 넣지 말 것
+- 기대값은 명세를 따라 숫자로
 
-## 규칙
-- **테스트 케이스는 정확히 하나만 작성한다.** it() 이 두 개 이상이면 안 된다.
-- 그 하나는 **PR ${prs.length}개의 기능을 동시에 사용하는** 입력을 쓴다. 일부만 쓰면 의미가 없다.
-- **기존 테스트를 옮겨 적지 않는다.** 이미 레포에 있다.
-- 기대값은 명세에서 **이 조합에 해당하는 계산만** 골라 직접 계산해 숫자로 단언한다.
-- ⚠️ **위에 나열된 PR 의 기능만 존재한다.** 명세에 적혀 있어도 이 조합에 없는 기능(다른 PR 이 구현할 것)은 적용하지 않는다. 그 기능을 쓰는 함수는 아직 아무 일도 하지 않는다.
-- 타입 단언(as X)을 쓰지 않는다. 타입을 import 하지 않았으므로 깨진다.
-- 기존 테스트와 같은 import 스타일과 확장자를 쓴다.
-- 테스트 파일 전체 내용만 출력한다. 설명과 코드펜스는 쓰지 않는다.`
+코드만 출력하세요.`
 
-  const raw = await chat(prompt, onLog)
+  let raw = ''
+  let lastErr = ''
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      raw = await chat(prompt, onLog)
+      return buildTest(raw, prs, sourceFiles, onLog)
+    } catch (err) {
+      lastErr = err instanceof Error ? err.message : String(err)
+      onLog(`${attempt}차 생성 실패: ${lastErr}. 다시 시도합니다`)
+    }
+  }
+  throw new Error(`세 번 시도했으나 쓸 만한 테스트를 얻지 못했습니다: ${lastErr}`)
+}
+
+/** 모델 출력에서 테스트 파일을 꺼내 검증한다. */
+function buildTest(
+  raw: string,
+  prs: PullRequest[],
+  sourceFiles: string[],
+  onLog: Log,
+): InteractionTest {
   let content = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
 
   // 추론형 모델은 "Thinking Process:" 같은 서문을 content 로 흘린다.
@@ -260,6 +288,14 @@ ${prs.map((p) => `## PR #${p.number} 변경\n${sourceDiff(p).slice(0, Math.floor
 
   if (!/\b(it|test)\s*\(/.test(content)) {
     throw new Error('생성된 테스트에 테스트 케이스가 없습니다')
+  }
+
+  // 사고 산문이 그대로 흘러들어오면 테스트처럼 보여도 파싱되지 않는다.
+  // import 구문 때문에 모듈로 감싸서 검사한다.
+  try {
+    new Script(`(async()=>{${content.replace(/^\s*import[^\n]*$/gm, '')}})`)
+  } catch (err) {
+    throw new Error(`생성된 테스트가 코드로 파싱되지 않습니다: ${(err as Error).message.slice(0, 80)}`)
   }
 
   // 두 PR 이 들여온 식별자로 상호작용 케이스를 골라낸다
