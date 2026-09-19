@@ -13,8 +13,12 @@ export type TestRun = {
   output: string
 }
 
-async function run(sandbox: Sandbox, cmd: string) {
-  return sandbox.process.executeCommand(`cd ${WORK} && ${cmd}`)
+async function run(sandbox: Sandbox, cmd: string, label = '명령') {
+  const res = await sandbox.process.executeCommand(`cd ${WORK} && ${cmd}`)
+  if (res.exitCode !== 0 && label !== '명령') {
+    throw new Error(`${label} 실패 (exit ${res.exitCode}): ${String(res.result).slice(0, 300)}`)
+  }
+  return res
 }
 
 /** 터미널 색상 코드를 걷어낸다. 안 하면 테스트 결과 파싱이 통째로 빗나간다. */
@@ -44,13 +48,16 @@ export type Collider = {
   dispose: () => Promise<void>
 }
 
-/** 샌드박스를 띄우고 레포를 클론한 뒤 두 PR을 머지한다. */
-export async function mergeFutures(
+/**
+ * 샌드박스를 띄우고 레포를 클론한다.
+ *
+ * 조합마다 샌드박스를 새로 띄우면 시간과 크레딧이 조합 수만큼 든다.
+ * 하나만 띄우고 git reset 으로 되돌려 재사용한다.
+ */
+export async function openSandbox(
   repo: string,
-  a: PullRequest,
-  b: PullRequest,
   onLog: Log,
-): Promise<{ collider: Collider; mergedCleanly: boolean }> {
+): Promise<{ collider: Collider; baseRef: string }> {
   const daytona = newDaytona()
 
   onLog('Daytona 샌드박스 부팅...')
@@ -78,22 +85,35 @@ export async function mergeFutures(
     throw new Error(`클론 실패: ${String(clone.result).slice(0, 300)}`)
   }
 
-  onLog(`PR #${a.number} 머지...`)
-  const mA = await run(sandbox, `git fetch --quiet origin ${a.headRef} && git merge --no-edit FETCH_HEAD`)
-  onLog(`PR #${b.number} 머지...`)
-  const mB = await run(sandbox, `git fetch --quiet origin ${b.headRef} && git merge --no-edit FETCH_HEAD`)
-
-  const mergedCleanly = mA.exitCode === 0 && mB.exitCode === 0
-  if (!mergedCleanly) {
-    onLog('git 충돌 발생 — 텍스트 충돌은 기존 도구도 잡습니다')
-  } else {
-    onLog('git 충돌 없음 ✓')
-  }
-
   onLog('의존성 설치...')
   await run(sandbox, 'npm install --silent --no-audit --no-fund 2>&1 | tail -2')
 
-  return { collider: { sandbox, dispose }, mergedCleanly }
+  const head = await run(sandbox, 'git rev-parse HEAD', 'base 확인')
+  const baseRef = String(head.result ?? '').trim()
+
+  return { collider: { sandbox, dispose }, baseRef }
+}
+
+/** 한 조합을 만든다. base 로 되돌린 뒤 PR 들을 차례로 머지한다. */
+export async function mergeCombination(
+  c: Collider,
+  baseRef: string,
+  prs: PullRequest[],
+  onLog: Log,
+): Promise<{ cleanly: boolean; conflictAt: number | null }> {
+  await run(c.sandbox, `git reset --hard --quiet ${baseRef} && git clean -qfd`, 'base 복원')
+
+  for (const [i, pr] of prs.entries()) {
+    const m = await c.sandbox.process.executeCommand(
+      `cd ${WORK} && git fetch --quiet origin ${pr.headRef} && git merge --no-edit FETCH_HEAD`,
+    )
+    if (m.exitCode !== 0) {
+      onLog(`#${pr.number} 에서 git 충돌`)
+      await run(c.sandbox, 'git merge --abort || true', '머지 취소')
+      return { cleanly: false, conflictAt: i }
+    }
+  }
+  return { cleanly: true, conflictAt: null }
 }
 
 /** 레포에 이미 있는 테스트를 돌린다. Merge Queue가 보는 그림. */
@@ -148,6 +168,11 @@ export async function runInteractionTest(
       : `상호작용 테스트 통과 — 이 조합은 안전합니다 ✓`,
   )
   return { ...parsed, output }
+}
+
+/** 다음 조합으로 넘어가기 전에 생성 테스트를 치운다. */
+export async function clearGeneratedTest(c: Collider, path: string): Promise<void> {
+  await run(c.sandbox, `rm -f '${path}'`, '생성 테스트 제거')
 }
 
 /** 실패 출력에서 기대값·실제값을 뽑는다. 데모의 숫자. */

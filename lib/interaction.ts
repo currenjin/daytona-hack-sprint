@@ -17,6 +17,83 @@ export type InteractionTest = {
 
 const TEST_PATH = 'test/_collider_interaction.test.ts'
 
+/** diff 의 추가 줄에서 그 PR이 들여온 식별자를 뽑는다. */
+export function addedIdentifiers(diff: string): string[] {
+  const added = diff
+    .split('\n')
+    .filter((l) => l.startsWith('+') && !l.startsWith('+++'))
+    .join(' ')
+  const words = added.match(/[a-zA-Z_][a-zA-Z0-9_]{3,}/g) ?? []
+  const noise = new Set(['import','export','from','const','return','function','describe','expect','test','true','false','null','undefined','number','string','order','price'])
+  const freq = new Map<string, number>()
+  for (const w of words) {
+    if (noise.has(w.toLowerCase())) continue
+    freq.set(w, (freq.get(w) ?? 0) + 1)
+  }
+  return [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([w]) => w)
+}
+
+/** it(...) 블록을 통째로 잘라낸다. 괄호 균형으로 끝을 찾는다. */
+function splitCases(src: string): { head: string; cases: string[] } {
+  const cases: string[] = []
+  const re = /\b(it|test)\s*\(/g
+  let m: RegExpExecArray | null
+  let firstStart = -1
+
+  while ((m = re.exec(src)) && cases.length < 50) {
+    const start = m.index
+    if (firstStart === -1) firstStart = start
+
+    const open = src.indexOf('(', start)
+    if (open === -1) break
+
+    let depth = 0
+    let i = open
+    for (; i < src.length; i++) {
+      if (src[i] === '(') depth++
+      else if (src[i] === ')') {
+        depth--
+        if (depth === 0) break
+      }
+    }
+    if (depth !== 0) break // 닫히지 않았다. 잘린 출력이다
+
+    let end = i + 1
+    if (src[end] === ';') end++
+
+    cases.push(src.slice(start, end))
+    // lastIndex 가 앞으로 가지 않으면 같은 자리를 무한히 다시 읽는다
+    re.lastIndex = Math.max(end, start + 1)
+  }
+  return { head: firstStart === -1 ? src : src.slice(0, firstStart), cases }
+}
+
+/**
+ * 두 PR의 기능을 모두 쓰는 테스트 하나만 남긴다.
+ *
+ * 모델은 기존 테스트를 베끼거나 관련 없는 케이스를 덧붙인다. 그러면 첫 실패가
+ * 엉뚱한 테스트가 되어 충돌과 무관한 숫자가 보고된다. 골라내는 일은 추론이
+ * 아니라 대조라서 모델에게 맡기지 않는다.
+ */
+export function keepInteractionCase(
+  content: string,
+  idsPerPr: string[][],
+): { picked: string; dropped: number } | null {
+  const { head, cases } = splitCases(content)
+  if (cases.length === 0) return null
+
+  // 모든 PR 의 식별자가 한 케이스 안에 다 나와야 상호작용이다
+  const usesAll = (c: string) => idsPerPr.every((ids) => ids.some((x) => c.includes(x)))
+
+  const hit = cases.filter(usesAll)
+  if (hit.length === 0) return null
+
+  // 여러 개면 가장 짧은 것. 군더더기 없는 쪽이 읽기 좋다.
+  const best = hit.sort((a, b) => a.length - b.length)[0]!
+  const body = `${head.trimEnd()}\n  ${best.trim()}\n})\n`
+  return { picked: body, dropped: cases.length - 1 }
+}
+
 /**
  * 생성 테스트의 import 경로를 레포 실제 구조에 맞춰 다시 쓴다.
  *
@@ -63,29 +140,26 @@ function sourceDiff(pr: PullRequest): string {
  * 여기서 끝내지 않는다. 가설은 샌드박스 실행으로 증명/반증된다.
  */
 export async function hypothesize(
-  a: PullRequest,
-  b: PullRequest,
+  prs: PullRequest[],
   spec: string,
   onLog: Log,
 ): Promise<Hypothesis> {
-  onLog(`두 PR의 충돌 가능성 분석 중...`)
+  onLog(`PR ${prs.length}개의 충돌 가능성 분석 중...`)
 
-  const prompt = `두 개의 Pull Request가 각각 독립적으로 테스트를 통과했습니다.
-git 충돌도 없습니다. 하지만 **함께 머지되면** 동작이 명세와 달라질 수 있습니다.
+  const blocks = prs
+    .map((p) => `## PR #${p.number}: ${p.title}\n변경 파일: ${p.files.join(', ')}\n${sourceDiff(p)}`)
+    .join('\n\n')
+
+  const prompt = `Pull Request ${prs.length}개가 각각 독립적으로 테스트를 통과했습니다.
+git 충돌도 없습니다. 하지만 함께 머지되면 동작이 명세와 달라질 수 있습니다.
 
 ## 명세 (기대 동작의 근거)
 ${spec.slice(0, 3000)}
 
-## PR #${a.number}: ${a.title}
-변경 파일: ${a.files.join(', ')}
-${sourceDiff(a)}
-
-## PR #${b.number}: ${b.title}
-변경 파일: ${b.files.join(', ')}
-${sourceDiff(b)}
+${blocks}
 
 ## 할 일
-두 변경이 **같은 계산 경로 위에 겹쳐 놓이는 지점**을 찾으세요.
+변경들이 같은 계산 경로 위에 겹쳐 놓이는 지점을 찾으세요.
 그리고 명세를 근거로 올바른 결과가 무엇인지 명시하세요.
 
 아래 JSON만 출력하세요. 다른 말 금지.
@@ -131,8 +205,7 @@ ${sourceDiff(b)}
  * Merge Queue는 **있는 테스트**를 돌린다. 없는 테스트는 못 만든다.
  */
 export async function writeInteractionTest(
-  a: PullRequest,
-  b: PullRequest,
+  prs: PullRequest[],
   spec: string,
   hypothesis: Hypothesis,
   sampleTest: string,
@@ -154,17 +227,17 @@ ${spec.slice(0, 2500)}
 ## 이 레포의 기존 테스트 (형식과 import 경로를 그대로 따를 것)
 ${sampleTest.slice(0, 1500)}
 
-## PR #${a.number} 변경
-${sourceDiff(a).slice(0, 2000)}
-
-## PR #${b.number} 변경
-${sourceDiff(b).slice(0, 2000)}
+${prs.map((p) => `## PR #${p.number} 변경\n${sourceDiff(p).slice(0, Math.floor(4500 / prs.length))}`).join('\n\n')}
 
 ## 규칙
-- **두 PR의 기능을 동시에 사용하는** 입력으로 테스트할 것. 하나만 쓰면 의미 없음.
-- 기대값은 **명세에서 근거를 찾아** 구체적 숫자로 단언할 것.
-- 기존 테스트와 같은 import 스타일·확장자를 쓸 것.
-- 테스트 파일 전체 내용만 출력. 설명·코드펜스 금지.`
+- **테스트 케이스는 정확히 하나만 작성한다.** it() 이 두 개 이상이면 안 된다.
+- 그 하나는 **PR ${prs.length}개의 기능을 동시에 사용하는** 입력을 쓴다. 일부만 쓰면 의미가 없다.
+- **기존 테스트를 옮겨 적지 않는다.** 이미 레포에 있다.
+- 기대값은 명세에서 **이 조합에 해당하는 계산만** 골라 직접 계산해 숫자로 단언한다.
+- ⚠️ **위에 나열된 PR 의 기능만 존재한다.** 명세에 적혀 있어도 이 조합에 없는 기능(다른 PR 이 구현할 것)은 적용하지 않는다. 그 기능을 쓰는 함수는 아직 아무 일도 하지 않는다.
+- 타입 단언(as X)을 쓰지 않는다. 타입을 import 하지 않았으므로 깨진다.
+- 기존 테스트와 같은 import 스타일과 확장자를 쓴다.
+- 테스트 파일 전체 내용만 출력한다. 설명과 코드펜스는 쓰지 않는다.`
 
   const raw = await chat(prompt, onLog)
   let content = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
@@ -185,6 +258,15 @@ ${sourceDiff(b).slice(0, 2000)}
   if (!/\b(it|test)\s*\(/.test(content)) {
     throw new Error('생성된 테스트에 테스트 케이스가 없습니다')
   }
+
+  // 두 PR 이 들여온 식별자로 상호작용 케이스를 골라낸다
+  const idsPerPr = prs.map((p) => addedIdentifiers(p.diff))
+  const only = keepInteractionCase(content, idsPerPr)
+  if (!only) {
+    throw new Error(`PR ${prs.length}개의 기능을 함께 쓰는 테스트가 생성되지 않았습니다`)
+  }
+  if (only.dropped > 0) onLog(`관련 없는 테스트 ${only.dropped}개 제거`)
+  content = only.picked
 
   const { fixed, changed } = fixImports(content, sourceFiles)
   for (const c of changed) onLog(`import 경로 교정: ${c}`)
