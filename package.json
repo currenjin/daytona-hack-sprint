@@ -12,7 +12,6 @@
     "preflight": "tsx scripts/preflight.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.127.0",
     "@daytona/sdk": "^0.214.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",

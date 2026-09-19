@@ -5,3 +5,4 @@ node_modules/
 .DS_Store
 ship-routes.json
 .verify-tmp.cjs
+.collider-cache/

@@ -13,6 +13,7 @@ import {
   runExistingTests,
   runInteractionTest,
 } from './lib/collide.js'
+import { generateWithCache } from './lib/cache.js'
 import { publish } from './lib/dns.js'
 import { makeSlug } from './lib/slug.js'
 
@@ -104,12 +105,22 @@ app.post('/api/collide', async (req, res) => {
     // ── 4. 가설 + 상호작용 테스트 생성 ──────────────────────
     send('step', { index: 4, total: 5, label: '상호작용 테스트 생성' })
     const specText = spec?.content ?? ''
-    const hypothesis = await hypothesize(prA, prB, specText, log)
-    send('hypothesis', hypothesis)
+    const cacheKey = [refA.repo, String(prA.number), String(prB.number), prA.diff, prB.diff]
+
+    const { value: hypothesis, fromCache: hCached } = await generateWithCache(
+      [...cacheKey, 'hypothesis'],
+      () => hypothesize(prA, prB, specText, log),
+      log,
+    )
+    send('hypothesis', { ...hypothesis, cached: hCached })
 
     const sample = await readSampleTest(collider)
-    const test = await writeInteractionTest(prA, prB, specText, hypothesis, sample, log)
-    send('test', { path: test.path, content: test.content })
+    const { value: test, fromCache: tCached } = await generateWithCache(
+      [...cacheKey, 'test'],
+      () => writeInteractionTest(prA, prB, specText, hypothesis, sample, log),
+      log,
+    )
+    send('test', { path: test.path, content: test.content, cached: tCached })
 
     // ── 5. 증명 ─────────────────────────────────────────────
     send('step', { index: 5, total: 5, label: '충돌 증명' })

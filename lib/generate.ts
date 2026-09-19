@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { optional } from './env.js'
 
 export type Log = (message: string) => void
@@ -88,53 +87,19 @@ async function chatOpenAICompatible(userPrompt: string, onLog: Log): Promise<str
   return out
 }
 
-/** Anthropic으로 생성 (ANTHROPIC_API_KEY 가 있을 때만) */
-async function chatAnthropic(userPrompt: string, onLog: Log): Promise<string> {
-  const stream = new Anthropic().messages.stream({
-    model: 'claude-opus-5',
-    max_tokens: 16000,
-    system: SYSTEM,
-    output_config: { effort: 'low' }, // 데모는 속도가 생명
-    messages: [{ role: 'user', content: userPrompt }],
-  })
-
-  let ticks = 0
-  stream.on('text', () => {
-    if (++ticks % 40 === 0) onLog(`코드 생성 중... (${ticks * 8}자 내외)`)
-  })
-
-  const message = await stream.finalMessage()
-  if (message.stop_reason === 'refusal') {
-    throw new Error('모델이 이 요청을 거절했습니다. 다른 프롬프트로 시도하세요.')
-  }
-
-  return message.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
-}
-
 /** 어떤 엔진으로 생성할지 — 설정된 것을 그대로 쓴다. */
-export function activeProvider(): { kind: 'openai-compatible' | 'anthropic'; label: string } {
+export function activeProvider(): { label: string } {
   const endpoint = optional('LLM_ENDPOINT')
-  if (endpoint && optional('LLM_MODEL')) {
-    const local = /localhost|127\.0\.0\.1/.test(endpoint)
-    return {
-      kind: 'openai-compatible',
-      label: `${local ? '로컬' : 'Nosana GPU'} · ${optional('LLM_MODEL')}`,
-    }
+  if (!endpoint || !optional('LLM_MODEL')) {
+    throw new Error('.env 에 LLM_ENDPOINT 와 LLM_MODEL (Nosana) 을 넣어야 합니다.')
   }
-  if (optional('ANTHROPIC_API_KEY')) return { kind: 'anthropic', label: 'Anthropic · claude-opus-5' }
-  throw new Error(
-    '.env 에 LLM_ENDPOINT + LLM_MODEL (Nosana/Ollama) 또는 ANTHROPIC_API_KEY 중 하나는 있어야 합니다.',
-  )
+  const local = /localhost|127\.0\.0\.1/.test(endpoint)
+  return { label: `${local ? '로컬' : 'Nosana GPU'} · ${optional('LLM_MODEL')}` }
 }
 
 export async function chat(userPrompt: string, onLog: Log): Promise<string> {
-  const provider = activeProvider()
-  return provider.kind === 'anthropic'
-    ? chatAnthropic(userPrompt, onLog)
-    : chatOpenAICompatible(userPrompt, onLog)
+  activeProvider() // 설정 검증
+  return chatOpenAICompatible(userPrompt, onLog)
 }
 
 /** 모델 출력에서 HTML 문서만 잘라낸다. 오픈모델은 코드펜스·잡담을 자주 붙인다. */
