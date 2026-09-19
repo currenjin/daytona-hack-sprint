@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="520" viewBox="0 0 960 520">
+<rect width="960" height="520" rx="24" fill="#ffffff"/>
+<rect x="1" y="1" width="958" height="518" rx="23" fill="none" stroke="#d0d7de"/>
+<text x="48" y="58" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#24292f">COLLIDER</text>
+<text x="48" y="112" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#24292f">Why this PR is unsafe to merge</text>
+
+<text x="48" y="168" font-family="Arial, sans-serif" font-size="13" fill="#57606a">1  IMPACT</text>
+<rect x="48" y="184" width="864" height="74" rx="12" fill="#fff1f0" stroke="#ffcecb"/>
+<text x="72" y="229" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#cf222e">Customer gets the wrong discount</text>
+
+<text x="48" y="304" font-family="Arial, sans-serif" font-size="13" fill="#57606a">2  RUNTIME EVIDENCE</text>
+<rect x="48" y="320" width="410" height="94" rx="12" fill="#f6f8fa"/>
+<text x="72" y="350" font-family="Arial, sans-serif" font-size="12" fill="#57606a">EXPECTED</text>
+<text x="72" y="389" font-family="Arial, sans-serif" font-size="29" font-weight="700" fill="#1a7f37">₩8,000</text>
+
+<rect x="502" y="320" width="410" height="94" rx="12" fill="#fff1f0"/>
+<text x="526" y="350" font-family="Arial, sans-serif" font-size="12" fill="#57606a">ACTUAL</text>
+<text x="526" y="389" font-family="Arial, sans-serif" font-size="29" font-weight="700" fill="#cf222e">₩8,100</text>
+
+<text x="48" y="460" font-family="Arial, sans-serif" font-size="13" fill="#57606a">3  SOURCE OF FAILURE</text>
+<text x="48" y="491" font-family="Arial, sans-serif" font-size="17" fill="#24292f">PR #42 and #37 both modify the final pricing path independently.</text>
+<text x="912" y="491" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#57606a">Existing CI ✓ · Collider ✕</text>
+</svg>
