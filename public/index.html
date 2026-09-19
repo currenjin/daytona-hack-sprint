@@ -5,223 +5,334 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Collider</title>
 <style>
-  :root {
-    --bg:#fbfbfa; --card:#ffffff; --line:#e6e4e0; --line-soft:#f0eeeb;
-    --fg:#17181a; --dim:#6b6f76; --faint:#9aa0a6;
+  :root{
+    --bg:#fafaf9; --card:#fff; --line:#e7e5e4; --soft:#f5f4f2;
+    --fg:#1c1917; --dim:#78716c; --faint:#a8a29e; --ink:#292524;
     --green:#15803d; --green-bg:#f0fdf4; --green-line:#bbf7d0;
     --red:#b91c1c; --red-bg:#fef2f2; --red-line:#fecaca;
-    --ink:#1f2937;
-    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    --amber:#a16207; --amber-bg:#fefce8; --amber-line:#fde68a;
+    --blue:#1d4ed8;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg:#0f1011; --card:#17191b; --line:#2a2d31; --line-soft:#212427;
-      --fg:#ececec; --dim:#9ba1a8; --faint:#6b7076;
-      --green:#4ade80; --green-bg:#0f2417; --green-line:#1e5236;
-      --red:#f87171; --red-bg:#2a1414; --red-line:#5c2626;
-      --ink:#d6dae0;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin:0; background:var(--bg); color:var(--fg);
-    font:17px/1.6 ui-sans-serif, -apple-system, "Apple SD Gothic Neo", Pretendard, system-ui, sans-serif;
-    -webkit-font-smoothing:antialiased;
-    padding:56px 24px 96px;
-  }
-  .wrap { max-width:820px; margin:0 auto; }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0c0a09; --card:#1c1917; --line:#292524; --soft:#161312;
+    --fg:#e7e5e4; --dim:#a8a29e; --faint:#78716c; --ink:#d6d3d1;
+    --green:#4ade80; --green-bg:#0d2117; --green-line:#14532d;
+    --red:#f87171; --red-bg:#261314; --red-line:#7f1d1d;
+    --amber:#fbbf24; --amber-bg:#231c08; --amber-line:#713f12;
+    --blue:#60a5fa;
+  }}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);padding:48px 24px 96px;
+    font:16px/1.6 ui-sans-serif,-apple-system,"Apple SD Gothic Neo",Pretendard,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto}
 
-  .badge {
-    display:inline-block; font-size:11px; font-weight:600; letter-spacing:.09em;
-    color:var(--dim); border:1px solid var(--line); border-radius:999px;
-    padding:5px 11px; margin-bottom:20px;
-  }
-  h1 { font-size:40px; line-height:1.15; letter-spacing:-.03em; margin:0 0 14px; font-weight:700; }
-  .lede { font-size:18px; color:var(--dim); margin:0 0 36px; max-width:60ch; }
-  .lede b { color:var(--fg); font-weight:600; }
+  header{display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap}
+  h1{font-size:30px;letter-spacing:-.03em;margin:0;font-weight:700}
+  .spon{font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--faint);
+    border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+  .credits{margin-left:auto;font:600 12px/1 var(--mono);color:var(--dim);
+    border:1px solid var(--line);border-radius:999px;padding:6px 11px}
+  .credits.low{color:var(--amber);border-color:var(--amber-line);background:var(--amber-bg)}
+  .credits.critical{color:var(--red);border-color:var(--red-line);background:var(--red-bg)}
+  .lede{color:var(--dim);margin:0 0 30px;font-size:17px;max-width:66ch}
+  .lede b{color:var(--fg);font-weight:600}
 
-  form { display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:12px; }
-  input {
-    padding:14px 15px; background:var(--card); border:1px solid var(--line);
-    border-radius:10px; color:var(--fg); font:15px/1 var(--mono); min-width:0;
-  }
-  input::placeholder { color:var(--faint); }
-  input:focus { outline:none; border-color:var(--ink); }
-  button.go {
-    padding:14px 24px; border:1px solid var(--ink); border-radius:10px;
-    background:var(--ink); color:var(--bg); font-size:15px; font-weight:600;
-    cursor:pointer; white-space:nowrap; font-family:inherit;
-  }
-  button.go:disabled { opacity:.4; cursor:not-allowed; }
-  .try { display:flex; gap:8px; margin-bottom:44px; flex-wrap:wrap; }
-  .try button {
-    padding:7px 13px; font-size:13px; border-radius:999px; background:transparent;
-    border:1px solid var(--line); color:var(--dim); cursor:pointer; font-family:inherit;
-  }
-  .try button:hover { border-color:var(--ink); color:var(--fg); }
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:16px}
+  .panel > h2{font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--faint);
+    margin:0 0 14px;text-transform:uppercase}
 
-  .rail { display:none; align-items:center; gap:10px; margin-bottom:20px; }
-  .rail.on { display:flex; }
-  .seg { flex:1; }
-  .seg .bar { height:3px; border-radius:2px; background:var(--line); transition:background .35s; }
-  .seg .nm { font-size:11px; color:var(--faint); margin-top:7px; letter-spacing:.01em; }
-  .seg.on .bar { background:var(--ink); }
-  .seg.on .nm { color:var(--fg); }
-  .clock { font:600 17px/1 var(--mono); color:var(--dim); min-width:58px; text-align:right; }
+  .rows{display:grid;gap:8px;margin-bottom:12px}
+  .row{display:flex;gap:8px;align-items:center}
+  .row input{flex:1;padding:12px 14px;background:var(--bg);border:1px solid var(--line);
+    border-radius:9px;color:var(--fg);font:14px/1 var(--mono);min-width:0}
+  .row input:focus{outline:none;border-color:var(--blue)}
+  .row .del{width:38px;height:40px;flex:none;border:1px solid var(--line);border-radius:9px;
+    background:transparent;color:var(--faint);cursor:pointer;font-size:16px}
+  .row .del:hover{color:var(--red);border-color:var(--red-line)}
+  .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .btn{padding:11px 16px;border-radius:9px;border:1px solid var(--line);background:transparent;
+    color:var(--dim);font:500 13px/1 inherit;cursor:pointer}
+  .btn:hover{border-color:var(--ink);color:var(--fg)}
+  .btn.primary{background:var(--ink);border-color:var(--ink);color:var(--bg);font-weight:700;
+    padding:12px 22px;font-size:14px;margin-left:auto}
+  .btn.primary:disabled{opacity:.4;cursor:not-allowed}
+  .hint{color:var(--faint);font-size:12.5px;margin-top:10px}
 
-  pre#log {
-    display:none; margin:0 0 20px; padding:14px 16px; background:var(--card);
-    border:1px solid var(--line); border-radius:12px; max-height:172px; overflow-y:auto;
-    font:13px/1.8 var(--mono); color:var(--dim); white-space:pre-wrap; word-break:break-all;
-  }
-  pre#log.on { display:block; }
-  pre#log b { color:var(--fg); font-weight:600; }
-  pre#log i { color:var(--red); font-style:normal; }
+  .prs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  .prc{padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+  .prc .n{font:700 11.5px/1 var(--mono);color:var(--blue)}
+  .prc .t{font-size:14px;font-weight:600;margin:4px 0 6px}
+  .prc .f{font:11px/1.6 var(--mono);color:var(--faint);word-break:break-all}
 
-  section {
-    display:none; margin-bottom:16px; padding:22px 24px;
-    background:var(--card); border:1px solid var(--line); border-radius:14px;
-  }
-  section.on { display:block; }
-  section > h2 {
-    font-size:12px; font-weight:600; letter-spacing:.06em; color:var(--faint);
-    margin:0 0 14px; text-transform:uppercase;
-  }
+  table.mx{border-collapse:separate;border-spacing:6px;margin:0 auto}
+  table.mx th{font:600 12px/1 var(--mono);color:var(--dim);padding:6px;font-weight:600}
+  table.mx td{padding:0}
+  .cell{width:76px;height:52px;border-radius:9px;border:1px solid var(--line);background:var(--soft);
+    display:flex;align-items:center;justify-content:center;font:700 10.5px/1 inherit;
+    color:var(--faint);cursor:default;transition:transform .12s}
+  .cell.diag{background:transparent;border-color:transparent;color:var(--faint)}
+  .cell.click{cursor:pointer}
+  .cell.click:hover{transform:translateY(-2px)}
+  .cell.sel{outline:2px solid var(--blue);outline-offset:2px}
+  .cell.running{background:var(--soft);color:var(--dim);border-style:dashed}
+  .cell.safe{background:var(--green-bg);border-color:var(--green-line);color:var(--green)}
+  .cell.collision{background:var(--red-bg);border-color:var(--red-line);color:var(--red)}
+  .cell.existing-fail,.cell.conflict{background:var(--amber-bg);border-color:var(--amber-line);color:var(--amber)}
+  .cell.skipped,.cell.error{background:var(--soft);color:var(--faint)}
 
-  .prs { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-  .pr { padding:14px 16px; border:1px solid var(--line-soft); border-radius:10px; background:var(--bg); }
-  .pr .n { font:600 12px/1 var(--mono); color:var(--dim); }
-  .pr .t { font-size:15px; font-weight:600; margin:5px 0 7px; }
-  .pr .f { font:11.5px/1.7 var(--mono); color:var(--faint); word-break:break-all; }
+  .allrow{display:flex;align-items:center;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+  .allrow .lbl{font:600 13px/1 var(--mono);color:var(--dim)}
 
-  .call { display:flex; gap:16px; align-items:flex-start; }
-  .call .mk { font-size:26px; line-height:1.1; flex:none; }
-  .call .hd { font-size:21px; font-weight:700; letter-spacing:-.01em; }
-  .call .sub { color:var(--dim); font-size:14.5px; margin-top:5px; }
-  section.pass { background:var(--green-bg); border-color:var(--green-line); }
-  section.pass .mk, section.pass .hd { color:var(--green); }
-  section.fail { background:var(--red-bg); border-color:var(--red-line); }
-  section.fail .mk, section.fail .hd { color:var(--red); }
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px;font-size:11.5px;color:var(--faint)}
+  .legend span::before{content:'';display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .lg-safe::before{background:var(--green)}
+  .lg-col::before{background:var(--red)}
+  .lg-warn::before{background:var(--amber)}
+  .lg-pend::before{background:var(--faint)}
 
-  .nums { display:flex; gap:44px; margin-top:20px; padding-top:18px; border-top:1px solid var(--red-line); }
-  .nums .k { font-size:11.5px; color:var(--dim); letter-spacing:.04em; margin-bottom:4px; }
-  .nums .v { font:700 30px/1 var(--mono); letter-spacing:-.02em; }
-  .nums .want .v { color:var(--green); }
-  .nums .got .v { color:var(--red); }
+  /* 상세 */
+  .steps{display:grid;gap:0;margin-bottom:18px}
+  .st{display:flex;align-items:center;gap:13px;padding:13px 15px;border:1px solid var(--line);background:var(--bg)}
+  .st:first-child{border-radius:10px 10px 0 0}
+  .st:last-child{border-radius:0 0 10px 10px}
+  .st + .st{border-top:0}
+  .st .mk{font-size:17px;width:20px;flex:none;text-align:center}
+  .st .nm{font-weight:600;font-size:14.5px}
+  .st .note{color:var(--dim);font-size:13px;margin-left:auto;text-align:right}
+  .st.ok{background:var(--green-bg);border-color:var(--green-line)}
+  .st.ok .mk,.st.ok .nm{color:var(--green)}
+  .st.bad{background:var(--red-bg);border-color:var(--red-line)}
+  .st.bad .mk,.st.bad .nm{color:var(--red)}
+  .st.warn{background:var(--amber-bg);border-color:var(--amber-line)}
+  .st.warn .mk,.st.warn .nm{color:var(--amber)}
+  .arrow{text-align:center;color:var(--faint);font-size:12px;padding:8px 0}
 
-  .guess { font-size:15.5px; }
-  .guess .why { color:var(--dim); font-size:14.5px; margin-top:9px; }
-  pre.code {
-    margin:0; padding:15px 17px; background:var(--bg); border:1px solid var(--line-soft);
-    border-radius:10px; overflow-x:auto; font:12.5px/1.75 var(--mono); color:var(--ink);
-    max-height:300px;
-  }
-  .meta { color:var(--faint); font-size:13px; margin-top:12px; }
-  .meta a { color:var(--ink); }
+  .nums{display:flex;gap:48px;padding:18px 15px;border:1px solid var(--red-line);
+    background:var(--red-bg);border-radius:10px;margin-bottom:16px}
+  .nums .k{font-size:11.5px;color:var(--dim);letter-spacing:.04em;margin-bottom:4px}
+  .nums .v{font:700 32px/1 var(--mono);letter-spacing:-.02em}
+  .nums .want .v{color:var(--green)}
+  .nums .got .v{color:var(--red)}
+
+  .hyp{padding:14px 16px;background:var(--bg);border:1px solid var(--line);border-radius:10px;margin-bottom:14px}
+  .hyp .k{font-size:11px;color:var(--faint);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+  .hyp .why{color:var(--dim);font-size:13.5px;margin-top:7px}
+
+  details{border:1px solid var(--line);border-radius:10px;background:var(--bg);margin-top:10px}
+  details summary{padding:11px 15px;cursor:pointer;font-size:13px;color:var(--dim);font-weight:500}
+  details summary::marker{color:var(--faint)}
+  details pre{margin:0;padding:0 15px 14px;font:12px/1.7 var(--mono);color:var(--ink);
+    overflow-x:auto;max-height:280px;white-space:pre-wrap;word-break:break-all}
+
+  #logWrap{margin-top:8px}
+  #log{margin:0;padding:0 15px 14px;font:12px/1.75 var(--mono);color:var(--dim);
+    max-height:220px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+  #log b{color:var(--fg);font-weight:600}
+  #log i{color:var(--red);font-style:normal}
+  .hidden{display:none}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <span class="badge">DAYTONA · NOSANA · DNSIMPLE</span>
-  <h1>합치면 깨지는 PR을<br>합치기 전에 찾습니다</h1>
+  <header>
+    <h1>Collider</h1>
+    <span class="spon">DAYTONA · NOSANA · DNSIMPLE</span>
+    <span class="credits" id="credits"></span>
+  </header>
   <p class="lede">
-    CI는 이 PR이 <b>오늘의 main</b>과 맞는지만 봅니다.
-    곧 머지될 옆 PR과 함께 있어도 괜찮은지는 아무도 보지 않습니다.
+    CI는 이 PR이 <b>오늘의 main</b>과 맞는지만 검사합니다.
+    곧 머지될 옆 PR과 함께 있어도 괜찮은지는 아무도 검사하지 않습니다.
   </p>
 
-  <form id="form">
-    <input id="prA" placeholder="owner/repo#1" autocomplete="off" />
-    <input id="prB" placeholder="owner/repo#2" autocomplete="off" />
-    <button class="go" id="go" type="submit">충돌시키기</button>
-  </form>
-  <div class="try" id="try">
-    <button type="button" data-a="currenjin/collider-demo#1" data-b="currenjin/collider-demo#2">
-      운임 정산: 쿠폰 PR × 멤버십 PR
-    </button>
+  <div class="panel">
+    <h2>열린 PR</h2>
+    <div class="rows" id="rows"></div>
+    <div class="acts">
+      <button class="btn" id="add" type="button">PR 추가</button>
+      <button class="btn" id="preset" type="button">데모 3개 넣기</button>
+      <button class="btn primary" id="run" type="button">미래 충돌 검사</button>
+    </div>
+    <div class="hint">같은 저장소의 PR만 함께 검사합니다. 최소 두 개가 필요합니다.</div>
   </div>
 
-  <div class="rail" id="rail">
-    <div class="seg"><div class="bar"></div><div class="nm">PR 수집</div></div>
-    <div class="seg"><div class="bar"></div><div class="nm">미래 머지</div></div>
-    <div class="seg"><div class="bar"></div><div class="nm">기존 테스트</div></div>
-    <div class="seg"><div class="bar"></div><div class="nm">테스트 생성</div></div>
-    <div class="seg"><div class="bar"></div><div class="nm">충돌 증명</div></div>
-    <div class="clock" id="clock">0.0s</div>
+  <div class="panel hidden" id="pPrs"><h2>검사 대상</h2><div class="prs" id="prsBox"></div></div>
+
+  <div class="panel hidden" id="pMatrix">
+    <h2>미래 충돌 매트릭스</h2>
+    <div id="matrixBox"></div>
+    <div class="legend">
+      <span class="lg-safe">SAFE 함께 있어도 명세대로</span>
+      <span class="lg-col">COLLISION 합쳤을 때만 어긋남</span>
+      <span class="lg-warn">기존 단계에서 이미 걸림</span>
+      <span class="lg-pend">대기 또는 건너뜀</span>
+    </div>
   </div>
 
-  <pre id="log"></pre>
+  <div class="panel hidden" id="pDetail"><h2 id="dTitle">조합 상세</h2><div id="detailBox"></div></div>
 
-  <section id="sPrs"><h2>합쳐볼 두 PR</h2><div class="prs" id="prsBox"></div></section>
-
-  <section id="sExisting">
-    <h2>합친 상태에서 기존 테스트</h2>
-    <div class="call">
-      <div class="mk" id="exMk"></div>
-      <div><div class="hd" id="exHd"></div><div class="sub" id="exSub"></div></div>
-    </div>
-  </section>
-
-  <section id="sGuess">
-    <h2>어디서 겹치는가</h2>
-    <div class="guess"><div id="gPoint"></div><div class="why" id="gWhy"></div></div>
-  </section>
-
-  <section id="sTest">
-    <h2>생성한 상호작용 테스트</h2>
-    <pre class="code" id="testCode"></pre>
-    <div class="meta">이 레포에 없던 테스트입니다. Nosana GPU가 두 PR의 diff와 명세 문서를 읽고 작성했습니다.</div>
-  </section>
-
-  <section id="sResult">
-    <h2>증명</h2>
-    <div class="call">
-      <div class="mk" id="rMk"></div>
-      <div><div class="hd" id="rHd"></div><div class="sub" id="rSub"></div></div>
-    </div>
-    <div class="nums" id="rNums" style="display:none">
-      <div class="want"><div class="k">명세상 기대</div><div class="v" id="rWant">—</div></div>
-      <div class="got"><div class="k">실제</div><div class="v" id="rGot">—</div></div>
-    </div>
-    <div class="meta" id="rMeta"></div>
-  </section>
+  <details id="logWrap" class="hidden"><summary>실행 로그</summary><pre id="log"></pre></details>
 </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const form = $('form'), go = $('go'), rail = $('rail'), clock = $('clock'), logEl = $('log');
-const segs = document.querySelectorAll('.seg');
-const PANELS = ['sPrs','sExisting','sGuess','sTest','sResult'];
+const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const PRESET = ['currenjin/collider-demo#1','currenjin/collider-demo#2','currenjin/collider-demo#3'];
 
-$('try').addEventListener('click', (e) => {
-  const b = e.target.closest('button'); if (!b) return;
-  $('prA').value = b.dataset.a; $('prB').value = b.dataset.b; form.requestSubmit();
-});
+let prList = [];        // plan 에서 받은 PR 목록
+let combos = [];        // { label, prNums[], state, data }
+let selected = null;
 
-const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+/* ── 입력 행 ───────────────────────────────────────── */
+function addRow(value = '') {
+  const el = document.createElement('div');
+  el.className = 'row';
+  el.innerHTML = `<input placeholder="owner/repo#1" value="${esc(value)}" autocomplete="off" />
+                  <button class="del" type="button" title="삭제">×</button>`;
+  el.querySelector('.del').onclick = () => {
+    if ($('rows').children.length > 2) el.remove();
+  };
+  $('rows').appendChild(el);
+}
+function readRows() {
+  return [...$('rows').querySelectorAll('input')].map((i) => i.value.trim()).filter(Boolean);
+}
+addRow(); addRow();
+$('add').onclick = () => addRow();
+$('preset').onclick = () => {
+  $('rows').innerHTML = '';
+  PRESET.forEach((p) => addRow(p));
+};
+
+/* ── 로그 ─────────────────────────────────────────── */
 function line(t, cls) {
   const o = cls ? `<${cls}>` : '', c = cls ? `</${cls}>` : '';
-  logEl.insertAdjacentHTML('beforeend', o + esc(t) + c + '\n');
-  logEl.scrollTop = logEl.scrollHeight;
+  $('log').insertAdjacentHTML('beforeend', o + esc(t) + c + '\n');
+  $('log').scrollTop = $('log').scrollHeight;
 }
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const prA = $('prA').value.trim(), prB = $('prB').value.trim();
-  if (!prA || !prB) return;
+/* ── 매트릭스 ─────────────────────────────────────── */
+const MARK = {
+  pending:'⚪ 대기', running:'검사 중', safe:'🟢 SAFE', collision:'🔴 COLLISION',
+  'existing-fail':'🟡 기존 실패', conflict:'🟡 GIT 충돌', skipped:'건너뜀', error:'오류',
+};
+function findCombo(nums) {
+  return combos.find((c) => c.prNums.length === nums.length && c.prNums.every((n, i) => n === nums[i]));
+}
+function renderMatrix() {
+  const n = prList.length;
+  const pairs = combos.filter((c) => c.prNums.length === 2);
+  const all = combos.find((c) => c.prNums.length > 2);
 
-  go.disabled = true;
-  logEl.textContent = ''; logEl.classList.add('on');
-  rail.classList.add('on');
-  PANELS.forEach((p) => { $(p).classList.remove('on','pass','fail'); });
-  segs.forEach((s) => s.classList.remove('on'));
+  let html = '<table class="mx"><tr><th></th>';
+  for (const p of prList) html += `<th>#${p.number}</th>`;
+  html += '</tr>';
 
-  const t0 = Date.now();
-  const tick = setInterval(() => { clock.textContent = ((Date.now()-t0)/1000).toFixed(1) + 's'; }, 100);
+  for (let i = 0; i < n; i++) {
+    html += `<tr><th>#${prList[i].number}</th>`;
+    for (let j = 0; j < n; j++) {
+      if (j <= i) {
+        html += `<td><div class="cell diag">${i === j ? '—' : ''}</div></td>`;
+      } else {
+        const c = findCombo([prList[i].number, prList[j].number]);
+        const st = c ? c.state : 'pending';
+        const clickable = c && ['safe','collision','existing-fail','conflict'].includes(st);
+        html += `<td><div class="cell ${st} ${clickable ? 'click' : ''}"
+                   data-label="${c ? esc(c.label) : ''}">${MARK[st] ?? st}</div></td>`;
+      }
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+
+  if (all) {
+    const clickable = ['safe','collision','existing-fail','conflict'].includes(all.state);
+    html += `<div class="allrow"><span class="lbl">${esc(all.label)}</span>
+      <div class="cell ${all.state} ${clickable ? 'click' : ''}" style="width:120px"
+        data-label="${esc(all.label)}">${MARK[all.state] ?? all.state}</div></div>`;
+  }
+
+  $('matrixBox').innerHTML = html;
+  $('matrixBox').querySelectorAll('.cell.click').forEach((el) => {
+    el.onclick = () => showDetail(el.dataset.label);
+    if (el.dataset.label === selected) el.classList.add('sel');
+  });
+  $('pMatrix').classList.remove('hidden');
+}
+
+/* ── 상세 ─────────────────────────────────────────── */
+function step(cls, mark, name, note) {
+  return `<div class="st ${cls}"><div class="mk">${mark}</div><div class="nm">${name}</div>
+          <div class="note">${esc(note ?? '')}</div></div>`;
+}
+function showDetail(label) {
+  const c = combos.find((x) => x.label === label);
+  if (!c) return;
+  selected = label;
+  $('dTitle').textContent = c.label;
+
+  const d = c.data;
+  let html = '<div class="steps">';
+
+  if (c.state === 'conflict') {
+    html += step('warn','!','git merge','텍스트 충돌. 지금 쓰는 도구도 잡습니다');
+  } else {
+    html += step('ok','✓','git merge','충돌 없음');
+    if (d.existing) {
+      const ok = d.existing.passed;
+      html += step(ok ? 'ok' : 'warn', ok ? '✓' : '!', '기존 테스트',
+        ok ? `${d.existing.total}개 전부 통과` : `${d.existing.failed}/${d.existing.total} 실패`);
+    }
+    if (c.state === 'existing-fail') {
+      html += '</div><div class="hint">기존 테스트가 이미 실패하므로 상호작용 테스트를 만들지 않았습니다. Nosana 추론을 건너뛰어 크레딧을 아낍니다.</div>';
+      $('detailBox').innerHTML = html; $('pDetail').classList.remove('hidden'); renderMatrix(); return;
+    }
+    html += '</div><div class="arrow">↓ 이 상호작용을 커버하는 테스트가 저장소에 없습니다. Collider 가 만듭니다</div><div class="steps">';
+    const bad = c.state === 'collision';
+    html += step(bad ? 'bad' : 'ok', bad ? '✕' : '✓', '생성한 상호작용 테스트',
+      bad ? '실패' : '통과');
+  }
+  html += '</div>';
+
+  if (d.assertion && (d.assertion.expected || d.assertion.actual)) {
+    html += `<div class="nums">
+      <div class="want"><div class="k">명세상 기대</div><div class="v">${esc(d.assertion.expected ?? '—')}</div></div>
+      <div class="got"><div class="k">실제</div><div class="v">${esc(d.assertion.actual ?? '—')}</div></div>
+    </div>`;
+  }
+  if (d.hypothesis) {
+    html += `<div class="hyp"><div class="k">어디서 겹치는가</div>
+      <div>${esc(d.hypothesis.collisionPoint)}</div>
+      <div class="why">${esc(d.hypothesis.reasoning)}</div></div>`;
+  }
+  if (d.test) {
+    html += `<details open><summary>생성한 테스트 (저장소에 없던 코드)</summary><pre>${esc(d.test)}</pre></details>`;
+  }
+  if (d.output) {
+    html += `<details><summary>실행 출력</summary><pre>${esc(d.output)}</pre></details>`;
+  }
+
+  $('detailBox').innerHTML = html;
+  $('pDetail').classList.remove('hidden');
+  renderMatrix();
+}
+
+/* ── 실행 ─────────────────────────────────────────── */
+$('run').onclick = async () => {
+  const prs = readRows();
+  if (prs.length < 2) { alert('PR 을 두 개 이상 입력하세요.'); return; }
+
+  $('run').disabled = true;
+  prList = []; combos = []; selected = null;
+  $('log').textContent = '';
+  $('logWrap').classList.remove('hidden');
+  ['pPrs','pMatrix','pDetail'].forEach((p) => $(p).classList.add('hidden'));
 
   try {
     const res = await fetch('/api/collide', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ prA, prB }),
+      body: JSON.stringify({ prs }),
     });
     if (!res.body) throw new Error('스트림을 열 수 없습니다.');
     const reader = res.body.getReader(), dec = new TextDecoder();
@@ -231,69 +342,79 @@ form.addEventListener('submit', async (e) => {
       buf += dec.decode(value, { stream:true });
       let i;
       while ((i = buf.indexOf('\n\n')) !== -1) {
-        const chunk = buf.slice(0,i).trim(); buf = buf.slice(i+2);
+        const chunk = buf.slice(0, i).trim(); buf = buf.slice(i + 2);
         if (chunk.startsWith('data:')) handle(JSON.parse(chunk.slice(5).trim()));
       }
     }
   } catch (err) {
     line('실패: ' + (err?.message || err), 'i');
   } finally {
-    clearInterval(tick); go.disabled = false;
+    $('run').disabled = false;
   }
-});
+};
+
+function setCredits(c) {
+  if (!c) return;
+  const el = $('credits');
+  el.textContent = `Nosana ${c.free.toFixed(2)} / ${c.assigned}`;
+  el.className = 'credits ' + (c.level === 'ok' ? '' : c.level);
+}
 
 function handle(m) {
   switch (m.event) {
     case 'log': line('  ' + m.message); break;
-    case 'step':
-      line(`[${m.index}/${m.total}] ${m.label}`, 'b');
-      segs.forEach((s,n) => s.classList.toggle('on', n < m.index));
-      break;
-    case 'prs':
-      $('prsBox').innerHTML = [m.a, m.b].map((p) =>
-        `<div class="pr"><div class="n">#${p.number}</div><div class="t">${esc(p.title)}</div>
+    case 'phase': line(m.name, 'b'); break;
+    case 'credits': setCredits(m); break;
+
+    case 'plan':
+      prList = m.prs;
+      combos = m.combos.map((label) => ({
+        label,
+        prNums: label.split('+').map((s) => Number(s.trim().replace('#',''))),
+        state: 'pending',
+        data: {},
+      }));
+      $('prsBox').innerHTML = m.prs.map((p) =>
+        `<div class="prc"><div class="n">#${p.number}</div><div class="t">${esc(p.title)}</div>
          <div class="f">${p.files.map(esc).join('<br>')}</div></div>`).join('');
-      $('sPrs').classList.add('on');
+      $('pPrs').classList.remove('hidden');
+      renderMatrix();
       break;
-    case 'existing': {
-      const ok = m.passed;
-      $('sExisting').className = 'on ' + (ok ? 'pass' : 'fail');
-      $('exMk').textContent = ok ? '✓' : '✕';
-      $('exHd').textContent = ok ? `기존 테스트 ${m.total}개 전부 통과` : `${m.failed}/${m.total} 실패`;
-      $('exSub').textContent = ok
-        ? 'GitHub Merge Queue도 여기서 통과시킵니다. 이 상호작용을 커버하는 테스트가 레포에 없습니다.'
-        : '텍스트 충돌이나 기존 테스트 실패는 GitHub Merge Queue도 잡습니다.';
+
+    case 'combo:start':
+      combos[m.index].state = 'running'; renderMatrix(); break;
+
+    case 'combo:existing':
+      combos[m.index].data.existing = { passed:m.passed, total:m.total, failed:m.failed };
+      break;
+
+    case 'combo:hypothesis':
+      combos[m.index].data.hypothesis = { collisionPoint:m.collisionPoint, reasoning:m.reasoning };
+      break;
+
+    case 'combo:test':
+      combos[m.index].data.test = m.content; break;
+
+    case 'combo:done': {
+      const c = combos[m.index];
+      c.state = m.verdict === 'existing-fail' ? 'existing-fail' : m.verdict;
+      c.data.assertion = m.assertion;
+      c.data.output = m.output;
+      renderMatrix();
+      // 첫 충돌을 자동으로 펼친다. 발표에서 클릭 한 번을 아낀다
+      if (m.verdict === 'collision' && !selected) showDetail(c.label);
       break;
     }
-    case 'hypothesis':
-      $('gPoint').textContent = m.collisionPoint;
-      $('gWhy').textContent = m.reasoning;
-      $('sGuess').classList.add('on');
-      break;
-    case 'test':
-      $('testCode').textContent = m.content;
-      $('sTest').classList.add('on');
-      break;
+
     case 'error': line('실패: ' + m.message, 'i'); break;
-    case 'done': {
-      const hit = m.collided;
-      $('sResult').className = 'on ' + (hit ? 'fail' : 'pass');
-      $('rMk').textContent = hit ? '✕' : '✓';
-      $('rHd').textContent = hit ? '행동 충돌을 증명했습니다' : '이 조합은 안전합니다';
-      $('rSub').textContent = hit
-        ? '두 PR 모두 CI 통과, git 충돌 없음, 합친 기존 테스트도 통과. 그런데 함께 쓰면 명세와 다릅니다.'
-        : '생성한 상호작용 테스트도 통과했습니다.';
-      if (m.assertion?.expected || m.assertion?.actual) {
-        $('rNums').style.display = 'flex';
-        $('rWant').textContent = m.assertion.expected ?? '—';
-        $('rGot').textContent = m.assertion.actual ?? '—';
-      }
-      $('rMeta').innerHTML = (m.reportUrl ? `리포트 <a href="${m.reportUrl}" target="_blank">${esc(m.reportUrl)}</a> · ` : '')
-        + `${(m.elapsedMs/1000).toFixed(1)}초`;
+    case 'done':
+      setCredits(m.credits);
+      line(`완료 ${(m.elapsedMs/1000).toFixed(1)}초`, 'b');
       break;
-    }
   }
 }
+
+fetch('/api/credits').then((r) => r.json()).then((d) => setCredits(d.nosana)).catch(() => {});
 </script>
 </body>
 </html>

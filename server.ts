@@ -123,32 +123,38 @@ app.post('/api/collide', async (req, res) => {
       }
 
       // 기존 테스트가 통과할 때만 생성한다. 크레딧을 아끼는 자리다.
-      const cacheKey = [repo, ...combo.prs.map((p) => `${p.number}:${p.diff.length}`)]
-      const hypothesis = (
-        await generateWithCache([...cacheKey, 'h'], () => hypothesize(combo.prs, specText, log), log)
-      ).value
-      send('combo:hypothesis', { index: idx, ...hypothesis })
+      // 한 조합의 생성이 실패해도 나머지 조합은 계속 검사한다.
+      try {
+        const cacheKey = [repo, ...combo.prs.map((p) => `${p.number}:${p.diff.length}`)]
+        const hypothesis = (
+          await generateWithCache([...cacheKey, 'h'], () => hypothesize(combo.prs, specText, log), log)
+        ).value
+        send('combo:hypothesis', { index: idx, ...hypothesis })
 
-      const test = (
-        await generateWithCache(
-          [...cacheKey, 't'],
-          () => writeInteractionTest(combo.prs, specText, hypothesis, sample, sourceFiles, log),
-          log,
-        )
-      ).value
-      send('combo:test', { index: idx, content: test.content })
+        const test = (
+          await generateWithCache(
+            [...cacheKey, 't'],
+            () => writeInteractionTest(combo.prs, specText, hypothesis, sample, sourceFiles, log),
+            log,
+          )
+        ).value
+        send('combo:test', { index: idx, content: test.content })
 
-      const interaction = await runInteractionTest(collider, test, log)
-      const assertion = extractAssertion(interaction.output)
+        const interaction = await runInteractionTest(collider, test, log)
+        const assertion = extractAssertion(interaction.output)
+        await clearGeneratedTest(collider, test.path)
 
-      await clearGeneratedTest(collider, test.path)
-
-      send('combo:done', {
-        index: idx,
-        verdict: interaction.failed > 0 ? 'collision' : 'safe',
-        assertion,
-        output: interaction.output.slice(-1200),
-      })
+        send('combo:done', {
+          index: idx,
+          verdict: interaction.failed > 0 ? 'collision' : 'safe',
+          assertion,
+          output: interaction.output.slice(-1200),
+        })
+      } catch (err) {
+        const why = err instanceof Error ? err.message : String(err)
+        log(`${combo.label} 생성 실패: ${why}`)
+        send('combo:done', { index: idx, verdict: 'error', note: why })
+      }
     }
 
     send('done', { elapsedMs: Date.now() - started, credits: await nosanaCredits() })

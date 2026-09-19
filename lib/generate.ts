@@ -28,7 +28,7 @@ async function chatOpenAICompatible(userPrompt: string, onLog: Log): Promise<str
     body: JSON.stringify({
       model,
       stream: true,
-      max_tokens: 3000,
+      max_tokens: 16000,
       temperature: 0.7,
       messages: [
         { role: 'system', content: SYSTEM },

@@ -244,8 +244,11 @@ ${prs.map((p) => `## PR #${p.number} 변경\n${sourceDiff(p).slice(0, Math.floor
 
   // 추론형 모델은 "Thinking Process:" 같은 서문을 content 로 흘린다.
   // 코드가 실제로 시작하는 지점부터 잘라낸다.
-  const fence = content.match(/```(?:ts|typescript|js|javascript)?\s*\n([\s\S]*?)```/)
-  if (fence) content = fence[1]!.trim()
+  // 사고 텍스트 안에 코드펜스가 여러 개 있을 수 있다. 마지막 것이 최종안이다.
+  const fences = [...content.matchAll(/```(?:ts|typescript|js|javascript)?\s*\n([\s\S]*?)```/g)]
+  const withTest = fences.filter((f) => /\b(it|test)\s*\(/.test(f[1] ?? ''))
+  if (withTest.length) content = withTest[withTest.length - 1]![1]!.trim()
+  else if (fences.length) content = fences[fences.length - 1]![1]!.trim()
   else {
     const codeStart = content.search(/^\s*(import |const |describe\(|it\(|test\()/m)
     if (codeStart > 0) content = content.slice(codeStart).trim()
