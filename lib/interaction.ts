@@ -15,6 +15,38 @@ export type InteractionTest = {
   content: string
 }
 
+const TEST_PATH = 'test/_collider_interaction.test.ts'
+
+/**
+ * 생성 테스트의 import 경로를 레포 실제 구조에 맞춰 다시 쓴다.
+ *
+ * 모델은 파일 이름은 맞게 고르지만 상대 경로를 자주 틀린다
+ * (./orderService.js → ../src/orderService.js). 경로는 추론이 아니라
+ * 조회로 풀 수 있는 문제라 모델에게 맡기지 않는다.
+ */
+export function fixImports(content: string, sourceFiles: string[]): { fixed: string; changed: string[] } {
+  const changed: string[] = []
+  const testDir = TEST_PATH.split('/').slice(0, -1).join('/')
+
+  const fixed = content.replace(/from\s+['"](\.[^'"]+)['"]/g, (whole, spec: string) => {
+    const base = spec.split('/').pop()!.replace(/\.(ts|js|mts|mjs)$/, '')
+    const match = sourceFiles.find((f) => {
+      const fb = f.split('/').pop()!.replace(/\.(ts|js)$/, '')
+      return fb === base
+    })
+    if (!match) return whole
+
+    // test/ 에서 대상 파일까지의 상대 경로
+    const depth = testDir ? testDir.split('/').length : 0
+    const rel = `${'../'.repeat(depth) || './'}${match.replace(/\.ts$/, '.js')}`
+    if (rel === spec) return whole
+    changed.push(`${spec} → ${rel}`)
+    return `from '${rel}'`
+  })
+
+  return { fixed, changed }
+}
+
 /** diff에서 잡음(테스트 파일, 락파일)을 빼고 소스 변경만 남긴다. */
 function sourceDiff(pr: PullRequest): string {
   return pr.diff
@@ -104,6 +136,7 @@ export async function writeInteractionTest(
   spec: string,
   hypothesis: Hypothesis,
   sampleTest: string,
+  sourceFiles: string[],
   onLog: Log,
 ): Promise<InteractionTest> {
   onLog('상호작용 테스트 작성 중...')
@@ -153,6 +186,9 @@ ${sourceDiff(b).slice(0, 2000)}
     throw new Error('생성된 테스트에 테스트 케이스가 없습니다')
   }
 
-  onLog(`테스트 생성됨 (${content.split('\n').length}줄)`)
-  return { path: 'test/_collider_interaction.test.ts', content }
+  const { fixed, changed } = fixImports(content, sourceFiles)
+  for (const c of changed) onLog(`import 경로 교정: ${c}`)
+
+  onLog(`테스트 생성됨 (${fixed.split('\n').length}줄)`)
+  return { path: TEST_PATH, content: fixed }
 }

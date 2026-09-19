@@ -119,6 +119,15 @@ export async function readSampleTest(c: Collider): Promise<string> {
   return String(res.result ?? '')
 }
 
+/** 레포의 소스 파일 목록. 생성 테스트의 import 경로를 결정적으로 고치는 데 쓴다. */
+export async function listSourceFiles(c: Collider): Promise<string[]> {
+  const res = await run(
+    c.sandbox,
+    `find . -path ./node_modules -prune -o -type f \\( -name '*.ts' -o -name '*.js' \\) -print | grep -v -E '(test|spec)\\.' | sed 's|^\\./||' | head -50`,
+  )
+  return String(res.result ?? '').split('\n').map((x) => x.trim()).filter(Boolean)
+}
+
 /** 생성한 상호작용 테스트를 넣고 다시 돌린다. 여기가 갈라지는 지점. */
 export async function runInteractionTest(
   c: Collider,

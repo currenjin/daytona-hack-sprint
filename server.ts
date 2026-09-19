@@ -9,6 +9,7 @@ import { hypothesize, writeInteractionTest } from './lib/interaction.js'
 import {
   extractAssertion,
   mergeFutures,
+  listSourceFiles,
   readSampleTest,
   runExistingTests,
   runInteractionTest,
@@ -115,9 +116,10 @@ app.post('/api/collide', async (req, res) => {
     send('hypothesis', { ...hypothesis, cached: hCached })
 
     const sample = await readSampleTest(collider)
+    const sourceFiles = await listSourceFiles(collider)
     const { value: test, fromCache: tCached } = await generateWithCache(
       [...cacheKey, 'test'],
-      () => writeInteractionTest(prA, prB, specText, hypothesis, sample, log),
+      () => writeInteractionTest(prA, prB, specText, hypothesis, sample, sourceFiles, log),
       log,
     )
     send('test', { path: test.path, content: test.content, cached: tCached })
