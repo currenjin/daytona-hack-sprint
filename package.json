@@ -8,12 +8,7 @@
     "dev": "tsx watch server.ts",
     "start": "tsx server.ts",
     "router": "node router/index.js",
-    "preflight": "tsx scripts/preflight.ts",
-    "test:sandbox": "tsx scripts/test-sandbox.ts",
-    "test:generate": "tsx scripts/test-generate.ts",
-    "test:publish": "tsx scripts/test-publish.ts",
-    "typecheck": "tsc --noEmit",
-    "e2e": "tsx scripts/e2e-offline.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",

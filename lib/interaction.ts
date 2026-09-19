@@ -1,0 +1,128 @@
+import { chat, type Log } from './generate.js'
+import type { PullRequest } from './github.js'
+
+export type Hypothesis = {
+  /** 두 PR이 함께 건드리는 지점 */
+  collisionPoint: string
+  /** 왜 충돌할 수 있는지 */
+  reasoning: string
+  /** 명세가 말하는 기대 동작 */
+  expected: string
+}
+
+export type InteractionTest = {
+  path: string
+  content: string
+}
+
+/** diff에서 잡음(테스트 파일, 락파일)을 빼고 소스 변경만 남긴다. */
+function sourceDiff(pr: PullRequest): string {
+  return pr.diff
+    .split(/^diff --git /m)
+    .filter((chunk) => chunk.trim() && !/^a\/(.*\/)?(test|spec)s?\//.test(chunk))
+    .map((c) => `diff --git ${c}`)
+    .join('\n')
+    .slice(0, 6000)
+}
+
+/**
+ * 1단계 — AI가 가설을 세운다.
+ *
+ * 여기서 끝내지 않는다. 가설은 샌드박스 실행으로 증명/반증된다.
+ */
+export async function hypothesize(
+  a: PullRequest,
+  b: PullRequest,
+  spec: string,
+  onLog: Log,
+): Promise<Hypothesis> {
+  onLog(`두 PR의 충돌 가능성 분석 중...`)
+
+  const prompt = `두 개의 Pull Request가 각각 독립적으로 테스트를 통과했습니다.
+git 충돌도 없습니다. 하지만 **함께 머지되면** 동작이 명세와 달라질 수 있습니다.
+
+## 명세 (기대 동작의 근거)
+${spec.slice(0, 3000)}
+
+## PR #${a.number}: ${a.title}
+변경 파일: ${a.files.join(', ')}
+${sourceDiff(a)}
+
+## PR #${b.number}: ${b.title}
+변경 파일: ${b.files.join(', ')}
+${sourceDiff(b)}
+
+## 할 일
+두 변경이 **같은 계산 경로 위에 겹쳐 놓이는 지점**을 찾으세요.
+그리고 명세를 근거로 올바른 결과가 무엇인지 명시하세요.
+
+아래 JSON만 출력하세요. 다른 말 금지.
+{
+  "collisionPoint": "겹치는 지점을 한 줄로 (예: quote() 안에서 두 할인이 연쇄 적용됨)",
+  "reasoning": "왜 문제인지 2~3문장",
+  "expected": "명세상 올바른 결과를 구체적 수치로"
+}`
+
+  const raw = await chat(prompt, onLog)
+  const json = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)
+
+  try {
+    const h = JSON.parse(json) as Hypothesis
+    onLog(`가설: ${h.collisionPoint}`)
+    return h
+  } catch {
+    throw new Error('가설 생성 실패 — 모델 응답이 JSON이 아닙니다')
+  }
+}
+
+/**
+ * 2단계 — 가설을 검증할 테스트를 만든다.
+ *
+ * 이게 Merge Queue와 갈라지는 지점이다.
+ * Merge Queue는 **있는 테스트**를 돌린다. 없는 테스트는 못 만든다.
+ */
+export async function writeInteractionTest(
+  a: PullRequest,
+  b: PullRequest,
+  spec: string,
+  hypothesis: Hypothesis,
+  sampleTest: string,
+  onLog: Log,
+): Promise<InteractionTest> {
+  onLog('상호작용 테스트 작성 중...')
+
+  const prompt = `두 PR이 함께 머지됐을 때의 상호작용을 검증하는 테스트를 작성하세요.
+
+## 충돌 가설
+겹치는 지점: ${hypothesis.collisionPoint}
+이유: ${hypothesis.reasoning}
+명세상 기대: ${hypothesis.expected}
+
+## 명세
+${spec.slice(0, 2500)}
+
+## 이 레포의 기존 테스트 (형식과 import 경로를 그대로 따를 것)
+${sampleTest.slice(0, 1500)}
+
+## PR #${a.number} 변경
+${sourceDiff(a).slice(0, 2000)}
+
+## PR #${b.number} 변경
+${sourceDiff(b).slice(0, 2000)}
+
+## 규칙
+- **두 PR의 기능을 동시에 사용하는** 입력으로 테스트할 것. 하나만 쓰면 의미 없음.
+- 기대값은 **명세에서 근거를 찾아** 구체적 숫자로 단언할 것.
+- 기존 테스트와 같은 import 스타일·확장자를 쓸 것.
+- 테스트 파일 전체 내용만 출력. 설명·코드펜스 금지.`
+
+  const raw = await chat(prompt, onLog)
+  let content = raw.trim().replace(/^```(?:ts|typescript|js)?\s*/i, '').replace(/```\s*$/, '').trim()
+
+  if (!/\b(it|test)\s*\(/.test(content)) {
+    throw new Error('생성된 테스트에 테스트 케이스가 없습니다')
+  }
+
+  onLog(`테스트 생성됨 (${content.split('\n').length}줄)`)
+  return { path: 'test/_collider_interaction.test.ts', content }
+}

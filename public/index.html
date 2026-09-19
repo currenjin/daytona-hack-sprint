@@ -3,258 +3,269 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Ship — 프롬프트에서 도메인까지</title>
+<title>Collider — 각각 초록인데 합치면 깨진다</title>
 <style>
   :root {
-    --bg: #0b0d10;
-    --panel: #14181d;
-    --line: #232a32;
-    --fg: #e8eaed;
-    --dim: #8b949e;
-    --accent: #5eead4;
-    --accent-dim: #2dd4bf;
-    --err: #f87171;
+    --bg:#08090b; --panel:#121519; --line:#242a31; --fg:#e9edf2; --dim:#8b949e;
+    --green:#3fb950; --red:#f85149; --amber:#d29922; --accent:#58a6ff;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--fg);
-    font: 15px/1.6 ui-sans-serif, -apple-system, "Apple SD Gothic Neo", "Pretendard", system-ui, sans-serif;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 40px 20px 60px;
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--fg);min-height:100vh;padding:36px 20px 80px;
+    font:17px/1.65 ui-sans-serif,-apple-system,"Apple SD Gothic Neo",Pretendard,system-ui,sans-serif;
   }
-  .wrap { width: 100%; max-width: 760px; }
-  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
-  h1 { font-size: 30px; margin: 0; letter-spacing: -0.02em; }
-  .tag { color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
-  .sub { color: var(--dim); margin: 0 0 28px; font-size: 14px; }
+  .wrap{max-width:900px;margin:0 auto}
+  header{display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap}
+  h1{font-size:34px;margin:0;letter-spacing:-.02em}
+  .chip{color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.08em}
+  .sub{color:var(--dim);margin:0 0 30px;font-size:16px}
 
-  form { display: flex; gap: 10px; margin-bottom: 14px; }
-  input {
-    flex: 1; min-width: 0; padding: 15px 16px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-    color: var(--fg); font-size: 16px; font-family: inherit;
+  form{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:12px}
+  input{
+    padding:15px 16px;background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    color:var(--fg);font:16px/1 ui-monospace,SFMono-Regular,Menlo,monospace;min-width:0;
   }
-  input:focus { outline: none; border-color: var(--accent-dim); }
-  button {
-    padding: 15px 26px; border: 0; border-radius: 12px;
-    background: var(--accent); color: #062a26; font-size: 16px; font-weight: 700;
-    font-family: inherit; cursor: pointer; white-space: nowrap;
+  input:focus{outline:none;border-color:var(--accent)}
+  button.go{
+    padding:15px 28px;border:0;border-radius:11px;background:var(--accent);color:#04121f;
+    font-size:16px;font-weight:800;cursor:pointer;white-space:nowrap;font-family:inherit;
   }
-  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.go:disabled{opacity:.45;cursor:not-allowed}
+  .examples{display:flex;gap:8px;margin-bottom:30px;flex-wrap:wrap}
+  .examples button{
+    padding:7px 13px;font-size:13px;border-radius:999px;background:transparent;
+    border:1px solid var(--line);color:var(--dim);cursor:pointer;font-family:inherit;
+  }
+  .examples button:hover{border-color:var(--accent);color:var(--accent)}
 
-  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 30px; }
-  .examples button {
-    padding: 7px 13px; font-size: 13px; font-weight: 500; border-radius: 999px;
-    background: transparent; border: 1px solid var(--line); color: var(--dim);
-  }
-  .examples button:hover:not(:disabled) { border-color: var(--accent-dim); color: var(--accent); }
+  .rail{display:none;gap:7px;margin-bottom:18px}
+  .rail.on{display:flex}
+  .seg{flex:1;text-align:center;font-size:11px;color:var(--dim);letter-spacing:.02em}
+  .seg .bar{height:4px;border-radius:2px;background:var(--line);margin-bottom:6px;transition:background .3s}
+  .seg.on .bar{background:var(--accent)}
+  .seg.on{color:var(--fg)}
+  .timer{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:800;font-size:19px;min-width:64px;text-align:right}
 
-  .status { display: none; gap: 14px; align-items: center; margin-bottom: 16px; }
-  .status.on { display: flex; }
-  .steps { display: flex; gap: 6px; flex: 1; }
-  .dot { flex: 1; height: 4px; border-radius: 2px; background: var(--line); transition: background .3s; }
-  .dot.on { background: var(--accent); }
-  .timer { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 700; font-size: 18px; }
+  pre#log{
+    display:none;margin:0 0 22px;padding:15px 17px;background:var(--panel);
+    border:1px solid var(--line);border-radius:11px;max-height:190px;overflow-y:auto;
+    font:13.5px/1.75 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim);
+    white-space:pre-wrap;word-break:break-all;
+  }
+  pre#log.on{display:block}
+  pre#log b{color:var(--fg);font-weight:600}
+  pre#log i{color:var(--red);font-style:normal}
 
-  pre#log {
-    display: none; margin: 0 0 24px; padding: 16px 18px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-    max-height: 260px; overflow-y: auto;
-    font: 13px/1.75 ui-monospace, SFMono-Regular, Menlo, monospace;
-    color: var(--dim); white-space: pre-wrap; word-break: break-all;
+  .card{
+    display:none;margin-bottom:18px;padding:20px 22px;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;
   }
-  pre#log.on { display: block; }
-  pre#log b { color: var(--fg); font-weight: 500; }
-  pre#log i { color: var(--err); font-style: normal; }
+  .card.on{display:block}
+  .card h3{margin:0 0 4px;font-size:14px;color:var(--dim);font-weight:600;letter-spacing:.02em}
 
-  #verify {
-    display: none; margin: 0 0 24px; padding: 16px 18px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-  }
-  #verify.on { display: block; }
-  #verify .vh { font-size: 13px; color: var(--dim); margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
-  #verify .vh b { color: var(--fg); font-weight: 600; }
-  #verify .badge {
-    margin-left: auto; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
-  }
-  #verify .badge.pass { background: rgba(94,234,212,.15); color: var(--accent); }
-  #verify .badge.fix { background: rgba(248,113,113,.15); color: var(--err); }
-  #verify ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
-  #verify li { font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
-  #verify li .m { width: 14px; flex: none; }
-  #verify li.ok .m { color: var(--accent); }
-  #verify li.no .m { color: var(--err); }
-  #verify li .d { color: var(--dim); font-size: 12px; }
+  /* 초록 / 빨강 결과 */
+  .verdict{display:flex;align-items:center;gap:18px}
+  .verdict .mark{font-size:42px;line-height:1;flex:none}
+  .verdict .big{font-size:26px;font-weight:800;letter-spacing:-.01em}
+  .verdict .note{color:var(--dim);font-size:14px;margin-top:3px}
+  .pass{border-color:rgba(63,185,80,.35)}
+  .pass .mark,.pass .big{color:var(--green)}
+  .fail{border-color:rgba(248,81,73,.45);background:rgba(248,81,73,.05)}
+  .fail .mark,.fail .big{color:var(--red)}
 
-  #result { display: none; text-align: center; padding-top: 8px; }
-  #result.on { display: block; }
-  #result .title { color: var(--dim); font-size: 14px; margin-bottom: 10px; }
-  #result a.url {
-    display: inline-block; color: var(--accent); font-weight: 700;
-    font-size: clamp(20px, 5.2vw, 34px); word-break: break-all;
-    text-decoration: none; line-height: 1.3; margin-bottom: 22px;
+  .nums{display:flex;gap:28px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+  .nums div{flex:1}
+  .nums .k{font-size:12px;color:var(--dim);margin-bottom:3px}
+  .nums .v{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums}
+  .nums .exp .v{color:var(--green)}
+  .nums .act .v{color:var(--red)}
+
+  .prs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .pr{padding:13px 15px;background:#0d1014;border:1px solid var(--line);border-radius:10px}
+  .pr .n{color:var(--accent);font-weight:700;font-size:13px}
+  .pr .t{font-size:15px;margin:2px 0 6px}
+  .pr .f{color:var(--dim);font:12px ui-monospace,Menlo,monospace;word-break:break-all}
+
+  .hyp{color:var(--fg);font-size:15px}
+  .hyp .why{color:var(--dim);font-size:14px;margin-top:8px}
+  .hyp .exp{color:var(--amber);font-size:14px;margin-top:8px}
+
+  pre.code{
+    margin:10px 0 0;padding:14px 16px;background:#0d1014;border:1px solid var(--line);
+    border-radius:10px;overflow-x:auto;font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:#c9d1d9;max-height:280px;
   }
-  #result a.url:hover { text-decoration: underline; }
-  #result img { width: min(300px, 78vw); border-radius: 16px; background: #fff; padding: 12px; }
-  #result .hint { color: var(--dim); font-size: 14px; margin-top: 16px; }
-  #result .review { color: var(--dim); font-size: 13px; margin-top: 8px; }
+  .foot{color:var(--dim);font-size:13px;margin-top:10px}
+  .foot a{color:var(--accent)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Ship</h1>
-    <span class="tag">DAYTONA × DNSIMPLE × NOSANA</span>
+    <h1>Collider</h1>
+    <span class="chip">DAYTONA × NOSANA × DNSIMPLE</span>
   </header>
-  <p class="sub">에이전트가 만들고, 격리된 샌드박스에서 실행하고, 스스로 검증해서 고친 다음, 진짜 주소로 출시합니다.</p>
+  <p class="sub">CI는 이 PR이 <b>오늘의 main</b>과 맞는지만 봅니다. 곧 머지될 다른 PR과 함께 있어도 괜찮은지는 아무도 안 봅니다.</p>
 
   <form id="form">
-    <input id="prompt" placeholder="예: 홍대 라멘집 리뷰 사이트" autocomplete="off" />
-    <button id="go" type="submit">Ship</button>
+    <input id="prA" placeholder="owner/repo#1" autocomplete="off" />
+    <input id="prB" placeholder="owner/repo#2" autocomplete="off" />
+    <button class="go" id="go" type="submit">충돌시키기</button>
   </form>
-
   <div class="examples" id="examples">
-    <button type="button">홍대 라멘집 리뷰 사이트</button>
-    <button type="button">팀 회고 투표 페이지</button>
-    <button type="button">실시간 사다리타기</button>
+    <button type="button" data-a="currenjin/collider-demo#1" data-b="currenjin/collider-demo#2">
+      운임 정산 — 쿠폰 PR × 멤버십 PR
+    </button>
   </div>
 
-  <div class="status" id="status">
-    <div class="steps">
-      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-    </div>
+  <div class="rail" id="rail">
+    <div class="seg"><div class="bar"></div>PR 수집</div>
+    <div class="seg"><div class="bar"></div>미래 머지</div>
+    <div class="seg"><div class="bar"></div>기존 테스트</div>
+    <div class="seg"><div class="bar"></div>테스트 생성</div>
+    <div class="seg"><div class="bar"></div>충돌 증명</div>
     <div class="timer" id="timer">0.0s</div>
   </div>
 
   <pre id="log"></pre>
 
-  <div id="verify">
-    <div class="vh"><b>샌드박스 자기 검증</b><span id="vSub"></span><span class="badge" id="vBadge"></span></div>
-    <ul id="vList"></ul>
+  <div class="card" id="cPrs"><h3>합쳐볼 두 PR</h3><div class="prs" id="prsBox"></div></div>
+
+  <div class="card" id="cExisting">
+    <h3>합친 상태에서 기존 테스트</h3>
+    <div class="verdict"><div class="mark" id="exMark"></div><div>
+      <div class="big" id="exBig"></div>
+      <div class="note" id="exNote"></div>
+    </div></div>
   </div>
 
-  <div id="result">
-    <div class="title" id="rTitle"></div>
-    <a class="url" id="rUrl" href="#" target="_blank" rel="noopener"></a>
-    <div><img id="rQr" alt="QR code" /></div>
-    <div class="hint">휴대폰으로 QR을 찍어보세요.</div>
-    <div class="review" id="rReview"></div>
+  <div class="card" id="cHyp">
+    <h3>AI 가설 — 어디서 겹치는가</h3>
+    <div class="hyp">
+      <div id="hypPoint"></div>
+      <div class="why" id="hypWhy"></div>
+      <div class="exp" id="hypExp"></div>
+    </div>
+  </div>
+
+  <div class="card" id="cTest">
+    <h3>생성된 상호작용 테스트 <span style="color:var(--dim);font-weight:400">— 이 레포에 없던 테스트입니다</span></h3>
+    <pre class="code" id="testCode"></pre>
+  </div>
+
+  <div class="card" id="cResult">
+    <h3>증명</h3>
+    <div class="verdict"><div class="mark" id="rsMark"></div><div>
+      <div class="big" id="rsBig"></div>
+      <div class="note" id="rsNote"></div>
+    </div></div>
+    <div class="nums" id="rsNums" style="display:none">
+      <div class="exp"><div class="k">명세상 기대</div><div class="v" id="rsExp">—</div></div>
+      <div class="act"><div class="k">실제</div><div class="v" id="rsAct">—</div></div>
+    </div>
+    <div class="foot" id="rsFoot"></div>
   </div>
 </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const form = $('form'), promptEl = $('prompt'), goBtn = $('go');
-const statusEl = $('status'), timerEl = $('timer'), logEl = $('log');
-const dots = document.querySelectorAll('.dot');
-const resultEl = $('result');
+const form = $('form'), go = $('go'), rail = $('rail'), timerEl = $('timer'), logEl = $('log');
+const segs = document.querySelectorAll('.seg');
 
 $('examples').addEventListener('click', (e) => {
-  if (e.target.tagName !== 'BUTTON') return;
-  promptEl.value = e.target.textContent;
-  form.requestSubmit();
+  const b = e.target.closest('button'); if (!b) return;
+  $('prA').value = b.dataset.a; $('prB').value = b.dataset.b; form.requestSubmit();
 });
 
-function line(text, cls) {
-  const tag = cls ? `<${cls}>` : '';
-  const end = cls ? `</${cls}>` : '';
-  logEl.insertAdjacentHTML('beforeend', tag + escapeHtml(text) + end + '\n');
-  logEl.scrollTop = logEl.scrollHeight;
-}
-function escapeHtml(s) {
-  return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
-}
-
-function renderVerify(msg) {
-  const box = $('verify');
-  box.classList.add('on');
-  $('vSub').textContent = msg.repaired ? '(자가 수정 후 재검증)' : '';
-  const badge = $('vBadge');
-  badge.textContent = msg.ok ? '통과' : '수정 필요';
-  badge.className = 'badge ' + (msg.ok ? 'pass' : 'fix');
-  $('vList').innerHTML = (msg.checks || [])
-    .map((c) =>
-      '<li class="' + (c.ok ? 'ok' : 'no') + '"><span class="m">' + (c.ok ? '✓' : '✗') + '</span>' +
-      '<span>' + escapeHtml(c.name) + '</span>' +
-      (c.detail ? '<span class="d">' + escapeHtml(c.detail) + '</span>' : '') + '</li>',
-    )
-    .join('');
-}
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function line(t, cls){ const o=cls?`<${cls}>`:'' , c=cls?`</${cls}>`:''; logEl.insertAdjacentHTML('beforeend', o+esc(t)+c+'\n'); logEl.scrollTop=logEl.scrollHeight; }
+const show = (id) => $(id).classList.add('on');
+const hideAll = () => ['cPrs','cExisting','cHyp','cTest','cResult'].forEach((i)=>$(i).classList.remove('on'));
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const prompt = promptEl.value.trim();
-  if (!prompt) return;
+  const prA = $('prA').value.trim(), prB = $('prB').value.trim();
+  if (!prA || !prB) return;
 
-  goBtn.disabled = true;
-  logEl.textContent = '';
-  logEl.classList.add('on');
-  statusEl.classList.add('on');
-  resultEl.classList.remove('on');
-  $('verify').classList.remove('on');
-  dots.forEach((d) => d.classList.remove('on'));
+  go.disabled = true; logEl.textContent=''; logEl.classList.add('on');
+  rail.classList.add('on'); hideAll();
+  segs.forEach((s)=>s.classList.remove('on'));
 
   const t0 = Date.now();
-  const tick = setInterval(() => {
-    timerEl.textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's';
-  }, 100);
+  const tick = setInterval(()=>{ timerEl.textContent = ((Date.now()-t0)/1000).toFixed(1)+'s'; }, 100);
 
   try {
-    const res = await fetch('/api/ship', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+    const res = await fetch('/api/collide', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ prA, prB }),
     });
     if (!res.body) throw new Error('스트림을 열 수 없습니다.');
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
+    const reader = res.body.getReader(), dec = new TextDecoder();
     let buf = '';
 
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-
+      const { done, value } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream:true });
       let i;
       while ((i = buf.indexOf('\n\n')) !== -1) {
-        const chunk = buf.slice(0, i).trim();
-        buf = buf.slice(i + 2);
+        const chunk = buf.slice(0,i).trim(); buf = buf.slice(i+2);
         if (!chunk.startsWith('data:')) continue;
-
-        const msg = JSON.parse(chunk.slice(5).trim());
-        if (msg.event === 'log') line('  ' + msg.message);
-        else if (msg.event === 'step') {
-          line(`[${msg.index}/${msg.total}] ${msg.label}`, 'b');
-          dots.forEach((d, n) => d.classList.toggle('on', n < msg.index));
-        } else if (msg.event === 'title') $('rTitle').textContent = msg.title;
-        else if (msg.event === 'verify') renderVerify(msg);
-        else if (msg.event === 'error') line('✗ ' + msg.message, 'i');
-        else if (msg.event === 'done') {
-          clearInterval(tick);
-          timerEl.textContent = (msg.elapsedMs / 1000).toFixed(1) + 's';
-          $('rUrl').textContent = msg.url.replace(/^https?:\/\//, '');
-          $('rUrl').href = msg.url;
-          $('rQr').src = msg.qr;
-          $('rReview').textContent = msg.repairs
-            ? '검증 실패 ' + msg.repairs + '건을 스스로 고친 뒤 출시했습니다.'
-            : (msg.verified ? '검증 통과 후 출시했습니다.' : '');
-          resultEl.classList.add('on');
-        }
+        handle(JSON.parse(chunk.slice(5).trim()));
       }
     }
   } catch (err) {
-    line('✗ ' + (err && err.message ? err.message : String(err)), 'i');
+    line('✗ ' + (err?.message || err), 'i');
   } finally {
-    clearInterval(tick);
-    goBtn.disabled = false;
+    clearInterval(tick); go.disabled = false;
   }
 });
+
+function handle(m){
+  if (m.event === 'log') line('  ' + m.message);
+  else if (m.event === 'step') {
+    line(`[${m.index}/${m.total}] ${m.label}`, 'b');
+    segs.forEach((s,n)=>s.classList.toggle('on', n < m.index));
+  }
+  else if (m.event === 'prs') {
+    $('prsBox').innerHTML = [m.a, m.b].map((p) =>
+      `<div class="pr"><div class="n">#${p.number}</div><div class="t">${esc(p.title)}</div>
+       <div class="f">${p.files.map(esc).join('<br>')}</div></div>`).join('');
+    show('cPrs');
+  }
+  else if (m.event === 'existing') {
+    const ok = m.passed;
+    $('cExisting').className = 'card on ' + (ok ? 'pass' : 'fail');
+    $('exMark').textContent = ok ? '✓' : '✗';
+    $('exBig').textContent = ok ? `기존 테스트 ${m.total}개 전부 통과` : `${m.failed}/${m.total} 실패`;
+    $('exNote').textContent = ok
+      ? 'Merge Queue도 여기서 통과시킵니다. 이 상호작용을 커버하는 테스트가 없으니까요.'
+      : '텍스트 충돌이나 기존 테스트 실패는 기존 도구도 잡습니다.';
+  }
+  else if (m.event === 'hypothesis') {
+    $('hypPoint').textContent = m.collisionPoint;
+    $('hypWhy').textContent = m.reasoning;
+    $('hypExp').textContent = '명세상 기대: ' + m.expected;
+    show('cHyp');
+  }
+  else if (m.event === 'test') { $('testCode').textContent = m.content; show('cTest'); }
+  else if (m.event === 'error') line('✗ ' + m.message, 'i');
+  else if (m.event === 'done') {
+    const hit = m.collided;
+    $('cResult').className = 'card on ' + (hit ? 'fail' : 'pass');
+    $('rsMark').textContent = hit ? '✗' : '✓';
+    $('rsBig').textContent = hit ? '행동 충돌 증명됨' : '이 조합은 안전합니다';
+    $('rsNote').textContent = hit
+      ? '두 PR 모두 CI 초록. git 충돌 없음. 합친 기존 테스트도 초록. 그런데 함께 쓰면 명세와 다릅니다.'
+      : '생성한 상호작용 테스트도 통과했습니다.';
+    if (m.assertion?.expected || m.assertion?.actual) {
+      $('rsNums').style.display = 'flex';
+      $('rsExp').textContent = m.assertion.expected ?? '—';
+      $('rsAct').textContent = m.assertion.actual ?? '—';
+    }
+    $('rsFoot').innerHTML = (m.reportUrl ? `리포트: <a href="${m.reportUrl}" target="_blank">${esc(m.reportUrl)}</a> · ` : '')
+      + `${(m.elapsedMs/1000).toFixed(1)}초`;
+  }
+}
 </script>
 </body>
 </html>

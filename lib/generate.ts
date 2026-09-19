@@ -130,7 +130,7 @@ export function activeProvider(): { kind: 'openai-compatible' | 'anthropic'; lab
   )
 }
 
-async function chat(userPrompt: string, onLog: Log): Promise<string> {
+export async function chat(userPrompt: string, onLog: Log): Promise<string> {
   const provider = activeProvider()
   return provider.kind === 'anthropic'
     ? chatAnthropic(userPrompt, onLog)
