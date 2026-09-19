@@ -1,5 +1,5 @@
 /**
- * 스폰서 3개 자격증명을 한 번에 검증한다.
+ * 핵심 연동 자격증명을 한 번에 검증한다.
  *   npm run preflight
  */
 import 'dotenv/config'
@@ -75,23 +75,7 @@ const checks: Check[] = [
       const hint = base === raw.replace(/\/+$/, '') ? '' : `  ← .env 의 LLM_ENDPOINT 를 ${base} 로 바꾸세요`
       return `${env('LLM_MODEL')} · "${r.probe.sample.slice(0, 30)}" · ${r.probe.url}${hint}`
     },
-  },
-  {
-    name: 'DNSimple — 토큰 + account ID',
-    run: async () => {
-      if (!env('DNSIMPLE_TOKEN')) throw new Error('DNSIMPLE_TOKEN 미설정')
-      const res = await fetch('https://api.dnsimple.com/v2/whoami', {
-        headers: { authorization: `Bearer ${env('DNSIMPLE_TOKEN')}`, accept: 'application/json' },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const j = (await res.json()) as { data?: { account?: { id?: number } } }
-      const id = j.data?.account?.id
-      if (!id) throw new Error('account.id 없음 — User token 말고 Account token 을 쓰세요')
-      const set = env('DNSIMPLE_ACCOUNT_ID')
-      if (set && String(id) !== set) throw new Error(`.env(${set}) 와 실제(${id}) 불일치`)
-      return `account ${id}${set ? '' : `  ← .env 의 DNSIMPLE_ACCOUNT_ID 에 ${id} 를 넣으세요`}`
-    },
-  },
+  }
 ]
 
 const results: { name: string; ok: boolean; detail: string }[] = []
