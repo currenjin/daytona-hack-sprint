@@ -1,5 +1,0 @@
-{
-  "collisionPoint": "Thinking Process: 1. **Analyze the Request:** * Role: Senior Engineer analyzing code changes and testing. * Task: Analyze 3 Pull Requests (PRs) that merge indep",
-  "reasoning": "Thinking Process: 1. **Analyze the Request:** * Role: Senior Engineer analyzing code changes and testing. * Task: Analyze 3 Pull Requests (PRs) that merge independently but conflict when merged together with respect to the specification. * Input: PR details, Specification (Quoting policy), Discount Policy (based on basePrice, not compounded), Tax Policy (on discounted amount). * Output Format: JSON only. No explanations, no greetings, no extra text. * Content Requirements: Identify `collisionPoint`, provide `reasoning` (2-3 sentences explaining why it's a problem based on spec), and state the ",
-  "expected": "명세 문서 기준 (아래 생성 테스트 참조)"
-}

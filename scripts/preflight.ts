@@ -1,5 +1,5 @@
 /**
- * 핵심 연동 자격증명을 한 번에 검증한다.
+ * GitHub, Daytona, Nosana 자격증명을 한 번에 검증한다.
  *   npm run preflight
  */
 import 'dotenv/config'
@@ -75,7 +75,7 @@ const checks: Check[] = [
       const hint = base === raw.replace(/\/+$/, '') ? '' : `  ← .env 의 LLM_ENDPOINT 를 ${base} 로 바꾸세요`
       return `${env('LLM_MODEL')} · "${r.probe.sample.slice(0, 30)}" · ${r.probe.url}${hint}`
     },
-  }
+  },
 ]
 
 const results: { name: string; ok: boolean; detail: string }[] = []

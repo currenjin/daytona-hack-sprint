@@ -199,7 +199,13 @@ export async function runCollisionAnalysis(input: AnalysisInput): Promise<Collis
       // 기존 테스트가 통과할 때만 생성한다. 크레딧을 아끼는 자리다.
       // 한 조합이 실패해도 나머지 조합은 계속 검사한다.
       try {
-        const cacheKey = [repo, ...combo.prs.map((p) => `${p.number}:${p.diff.length}`)]
+        // diff 길이를 키에 넣었더니 gh 버전에 따라 diff 문자열이 달라져서
+        // CI 에서 캐시가 전부 빗나갔다. PR 번호만 쓰고 순서도 고정한다.
+        // #1 + #2 와 #2 + #1 은 같은 조합이므로 같은 결과를 써야 한다.
+        const cacheKey = [
+          repo,
+          combo.prs.map((p) => p.number).sort((a, b) => a - b).join('+'),
+        ]
         const hypothesis = (
           await generateWithCache([...cacheKey, 'h'], () => hypothesize(combo.prs, specText, log), log)
         ).value

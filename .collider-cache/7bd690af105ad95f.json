@@ -1,5 +1,0 @@
-{
-  "collisionPoint": "{ \"collisionPoint\": quote() 함수 내에서 calculate() 로 기본 운임 할인 적용 후 invoice.ts 에서 issue() 가 부가세 계산하는 경로\", \"reasoning\": 두 PR이 동일한 가격 계산 흐름에 개입하지만 서로의 할인 정책 (쿠폰 vs 멤버십",
-  "reasoning": "{ \"collisionPoint\": quote() 함수 내에서 calculate() 로 기본 운임 할인 적용 후 invoice.ts 에서 issue() 가 부가세 계산하는 경로\", \"reasoning\": 두 PR이 동일한 가격 계산 흐름에 개입하지만 서로의 할인 정책 (쿠폰 vs 멤버십) 이 어떻게 순차적으로 적용되는지 고려하지 않아 충돌 위험. 특히 명세서상 '할인끼리 중첩 금지' 규칙을 위반하면 기본 운임 기준이 아닌 할인 후 금액에서 다시 할인이 걸릴 수 있음.\", \"expected\": basePrice=10,000, couponAmount=1,000, membershipRate=0.9 인 경우 최종 청구액 = (10,000 - 1,000) × (1 - 0.9) + 8,000×0.1? → 명세상 쿠폰과 멤버십 모두 basePrice 기준 차감하므로: (10,000-1,000)-(10,000×0.1)=8,000 원, 부가세 포함 8,800 원\" }",
-  "expected": "명세 문서 기준 (아래 생성 테스트 참조)"
-}
