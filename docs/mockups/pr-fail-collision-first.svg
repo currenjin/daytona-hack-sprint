@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="500" viewBox="0 0 960 500">
+<rect width="960" height="500" rx="24" fill="#fff"/><rect x="1" y="1" width="958" height="498" rx="23" fill="none" stroke="#d0d7de"/>
+<text x="48" y="58" font-family="Arial" font-size="18" font-weight="700" fill="#24292f">COLLIDER · PR #42</text>
+<text x="48" y="118" font-family="Arial" font-size="30" font-weight="700" fill="#cf222e">Future collision with #37</text>
+<text x="48" y="154" font-family="Arial" font-size="17" fill="#57606a">This PR is not safe to merge yet.</text>
+<rect x="48" y="194" width="864" height="82" rx="14" fill="#fff1f0" stroke="#ffcecb"/>
+<text x="72" y="226" font-family="Arial" font-size="12" fill="#57606a">COLLIDES WITH</text>
+<text x="72" y="258" font-family="Arial" font-size="22" font-weight="700" fill="#24292f">#37 Add membership discount</text>
+<text x="48" y="332" font-family="Arial" font-size="12" fill="#57606a">WHAT BREAKS</text>
+<text x="48" y="368" font-family="Arial" font-size="22" font-weight="700" fill="#24292f">Discount calculation</text>
+<text x="48" y="424" font-family="Arial" font-size="13" fill="#57606a">Existing CI</text><text x="150" y="424" font-family="Arial" font-size="16" font-weight="700" fill="#1a7f37">✓ 12 / 12</text>
+<text x="360" y="424" font-family="Arial" font-size="13" fill="#57606a">Expected</text><text x="442" y="424" font-family="Arial" font-size="18" font-weight="700" fill="#1a7f37">₩8,000</text>
+<text x="640" y="424" font-family="Arial" font-size="13" fill="#57606a">Actual</text><text x="700" y="424" font-family="Arial" font-size="18" font-weight="700" fill="#cf222e">₩8,100</text>
+</svg>
