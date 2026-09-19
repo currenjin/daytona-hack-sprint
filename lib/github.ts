@@ -75,3 +75,41 @@ export async function findSpec(repo: string): Promise<{ path: string; content: s
   }
   return null
 }
+
+/** 지금 열려 있는 PR 번호들. CI 가 현재 PR 과 짝지을 대상을 찾는다. */
+export async function listOpenPrs(repo: string): Promise<{ number: number; title: string }[]> {
+  const { stdout } = await exec('gh', [
+    'pr', 'list', '--repo', repo, '--state', 'open', '--limit', '30', '--json', 'number,title',
+  ])
+  return JSON.parse(stdout) as { number: number; title: string }[]
+}
+
+/**
+ * 같은 PR 에 코멘트를 쌓지 않는다. 표시가 있는 기존 코멘트를 찾아 갈아끼운다.
+ * PR 을 push 할 때마다 workflow 가 돌기 때문에 이 처리가 없으면 코멘트가 줄줄이 쌓인다.
+ */
+export async function upsertComment(
+  repo: string,
+  prNumber: number,
+  marker: string,
+  body: string,
+): Promise<void> {
+  let existing: { id: number; body: string }[] = []
+  try {
+    const { stdout } = await exec(
+      'gh',
+      ['api', `repos/${repo}/issues/${prNumber}/comments`, '--paginate'],
+      { maxBuffer: 10 * 1024 * 1024 },
+    )
+    existing = JSON.parse(stdout) as { id: number; body: string }[]
+  } catch {
+    existing = []
+  }
+
+  const mine = existing.find((c) => (c.body ?? '').includes(marker))
+  const args = mine
+    ? ['api', '--method', 'PATCH', `repos/${repo}/issues/comments/${mine.id}`, '-f', `body=${body}`]
+    : ['api', '--method', 'POST', `repos/${repo}/issues/${prNumber}/comments`, '-f', `body=${body}`]
+
+  await exec('gh', args, { maxBuffer: 10 * 1024 * 1024 })
+}

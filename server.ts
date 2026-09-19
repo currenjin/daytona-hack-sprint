@@ -4,21 +4,11 @@ import { dirname, join } from 'node:path'
 
 import { PORT } from './lib/env.js'
 import { activeProvider } from './lib/generate.js'
-import { fetchPr, findSpec, parsePr } from './lib/github.js'
-import { hypothesize, writeInteractionTest } from './lib/interaction.js'
-import {
-  clearGeneratedTest,
-  extractAssertion,
-  listSourceFiles,
-  mergeCombination,
-  openSandbox,
-  readSampleTest,
-  runExistingTests,
-  runInteractionTest,
-} from './lib/collide.js'
-import { pickCombos } from './lib/combos.js'
-import { nosanaCredits, shouldStop } from './lib/credits.js'
-import { generateWithCache } from './lib/cache.js'
+import { parsePr } from './lib/github.js'
+import { runCollisionAnalysis } from './lib/engine.js'
+import { nosanaCredits } from './lib/credits.js'
+import { loadReport, saveReport } from './lib/reports.js'
+import { renderFailureSvg, renderSuccessSvg, type PrReport } from './lib/svg.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -38,7 +28,7 @@ function friendly(err: unknown): string {
   return raw.split('\n')[0]!.slice(0, 180)
 }
 
-app.use(express.json({ limit: '1mb' }))
+app.use(express.json({ limit: '4mb' }))
 app.use(express.static(join(here, 'public')))
 
 app.get('/healthz', (_req, res) => res.json({ ok: true }))
@@ -57,119 +47,118 @@ app.post('/api/collide', async (req, res) => {
 
   const send = (event: string, data: unknown) =>
     res.write(`data: ${JSON.stringify({ event, ...(data as object) })}\n\n`)
-  const log = (message: string) => send('log', { message })
 
   if (inputs.length < 2) {
     send('error', { message: 'PR 을 두 개 이상 입력하세요 (예: owner/repo#1)' })
     return res.end()
   }
 
-  const started = Date.now()
-  let dispose: (() => Promise<void>) | null = null
-
   try {
-    send('phase', { name: 'PR 수집' })
     const refs = inputs.map(parsePr)
     const repo = refs[0]!.repo
     if (refs.some((r) => r.repo !== repo)) throw new Error('PR 이 모두 같은 레포여야 합니다')
 
-    const prs = await Promise.all(refs.map((r) => fetchPr(r.repo, r.number)))
-    for (const p of prs) log(`#${p.number} ${p.title}`)
-
-    const spec = await findSpec(repo)
-    log(spec ? `명세 발견: ${spec.path}` : '명세 문서 없음. 기대값 근거가 약해집니다')
-
-    const combos = pickCombos(prs)
-    send('plan', {
+    // 웹과 CI 가 같은 엔진을 쓴다. 이벤트만 SSE 로 흘려보낸다.
+    await runCollisionAnalysis({
       repo,
-      prs: prs.map((p) => ({ number: p.number, title: p.title, files: p.files })),
-      combos: combos.map((c) => c.label),
-      spec: spec?.path ?? null,
+      numbers: refs.map((r) => r.number),
+      onEvent: (e) => send(e.event, e),
     })
-    log(`조합 ${combos.length}개를 검사합니다`)
-
-    // 샌드박스는 하나만 띄우고 git reset 으로 되돌려 재사용한다
-    send('phase', { name: '샌드박스 준비' })
-    const { collider, baseRef } = await openSandbox(repo, log)
-    dispose = collider.dispose
-
-    const sourceFiles = await listSourceFiles(collider)
-    const specText = spec?.content ?? ''
-
-    for (const [idx, combo] of combos.entries()) {
-      send('combo:start', { index: idx, label: combo.label })
-
-      const credits = await nosanaCredits()
-      if (credits) send('credits', credits)
-      if (shouldStop(credits)) {
-        log('크레딧이 거의 없어 남은 조합을 건너뜁니다')
-        send('combo:done', { index: idx, verdict: 'skipped', note: '크레딧 부족' })
-        break
-      }
-
-      const merged = await mergeCombination(collider, baseRef, combo.prs, log)
-      if (!merged.cleanly) {
-        send('combo:done', { index: idx, verdict: 'conflict', note: 'git 충돌' })
-        continue
-      }
-
-      const existing = await runExistingTests(collider, log)
-      send('combo:existing', { index: idx, ...existing, output: existing.output.slice(-800) })
-
-      if (!existing.passed) {
-        send('combo:done', { index: idx, verdict: 'existing-fail', note: '기존 테스트 실패' })
-        continue
-      }
-
-      const sample = await readSampleTest(
-        collider,
-        [...new Set(combo.prs.flatMap((p) => p.files))].filter((f) => !/(test|spec)\./.test(f)),
-      )
-
-      // 기존 테스트가 통과할 때만 생성한다. 크레딧을 아끼는 자리다.
-      // 한 조합의 생성이 실패해도 나머지 조합은 계속 검사한다.
-      try {
-        const cacheKey = [repo, ...combo.prs.map((p) => `${p.number}:${p.diff.length}`)]
-        const hypothesis = (
-          await generateWithCache([...cacheKey, 'h'], () => hypothesize(combo.prs, specText, log), log)
-        ).value
-        send('combo:hypothesis', { index: idx, ...hypothesis })
-
-        const test = (
-          await generateWithCache(
-            [...cacheKey, 't'],
-            () => writeInteractionTest(combo.prs, specText, hypothesis, sample, sourceFiles, log),
-            log,
-          )
-        ).value
-        send('combo:test', { index: idx, content: test.content })
-
-        const interaction = await runInteractionTest(collider, test, log)
-        const assertion = extractAssertion(interaction.output)
-        await clearGeneratedTest(collider, test.path)
-
-        send('combo:done', {
-          index: idx,
-          verdict: interaction.failed > 0 ? 'collision' : 'safe',
-          assertion,
-          output: interaction.output.slice(-1200),
-        })
-      } catch (err) {
-        const why = err instanceof Error ? err.message : String(err)
-        log(`${combo.label} 생성 실패: ${why}`)
-        send('combo:done', { index: idx, verdict: 'error', note: why })
-      }
-    }
-
-    send('done', { elapsedMs: Date.now() - started, credits: await nosanaCredits() })
   } catch (err) {
     console.error('[collider]', err)
     send('error', { message: friendly(err) })
   } finally {
-    if (dispose) await dispose().catch(() => {})
     res.end()
   }
 })
+
+/** CI 러너가 분석 결과를 올린다. 돌려준 URL 이 PR 코멘트에 들어간다. */
+app.post('/api/reports', async (req, res) => {
+  try {
+    const report = req.body as PrReport
+    if (!report?.currentPr?.number) return res.status(400).json({ error: 'currentPr 이 없습니다' })
+    const id = await saveReport(report)
+    res.json({ id, svgPath: `/reports/${id}.svg`, reportPath: `/reports/${id}` })
+  } catch (err) {
+    res.status(500).json({ error: friendly(err) })
+  }
+})
+
+app.get('/reports/:id.svg', async (req, res) => {
+  const report = await loadReport(String(req.params.id))
+  if (!report) return res.status(404).type('text/plain').send('not found')
+  res.type('image/svg+xml')
+  // GitHub 은 코멘트 이미지를 자기 프록시로 캐시한다. 재검사 결과가 옛 그림으로
+  // 보이지 않도록 캐시를 짧게 잡는다.
+  res.set('cache-control', 'public, max-age=60')
+  res.send(report.collision ? renderFailureSvg(report) : renderSuccessSvg(report))
+})
+
+app.get('/reports/:id', async (req, res) => {
+  const report = await loadReport(String(req.params.id))
+  if (!report) return res.status(404).type('text/plain').send('not found')
+  res.type('html').send(reportPage(report))
+})
+
+function esc(s: unknown): string {
+  return String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!)
+}
+
+/** 상세 리포트. 웹 대시보드와 같은 색과 타이포를 쓴다. */
+function reportPage(r: PrReport): string {
+  const rows = r.checkedPrs
+    .map((p) => {
+      const hit = r.collision?.withPr === p.number
+      return `<tr><td>#${p.number}</td><td>${esc(p.title)}</td><td class="${
+        hit ? 'bad' : 'good'
+      }">${hit ? 'collision' : 'no collision'}</td></tr>`
+    })
+    .join('')
+
+  const detail = r.collision
+    ? `<section class="card bad-card">
+         <h2>Collides with #${r.collision.withPr}</h2>
+         <p>${esc(r.collision.withPrTitle)}</p>
+         <dl>
+           <dt>What breaks</dt><dd>${esc(r.collision.impact)}</dd>
+           <dt>Expected</dt><dd>${esc(r.collision.expected)}</dd>
+           <dt>Actual</dt><dd class="bad">${esc(r.collision.actual)}</dd>
+         </dl>
+       </section>`
+    : `<section class="card"><h2>No collision found in checked combinations</h2>
+         <p>${r.checkedPrs.length} / ${r.checkedPrs.length} combinations passed.</p></section>`
+
+  const existing = r.existingTests
+    ? `<p class="muted">Existing tests ${r.existingTests.passed} / ${r.existingTests.total} passed before the interaction test ran.</p>`
+    : ''
+
+  return `<!doctype html><meta charset="utf-8">
+<title>Collider · ${esc(r.repo)} #${r.currentPr.number}</title>
+<style>
+:root{color-scheme:light dark}
+body{font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:820px;margin:48px auto;padding:0 20px;color:#111}
+h1{font-size:20px;margin:0 0 4px}
+.muted{color:#666}
+.card{border:1px solid #e3e5e8;border-radius:12px;padding:20px 24px;margin:20px 0}
+.bad-card{border-color:#f0b4b4;background:#fff7f7}
+.bad{color:#b42318}.good{color:#067647}
+dl{display:grid;grid-template-columns:140px 1fr;gap:6px 16px;margin:12px 0 0}
+dt{color:#666}dd{margin:0;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+td{padding:8px 0;border-bottom:1px solid #eef0f2}
+@media (prefers-color-scheme:dark){
+  body{color:#e8eaed;background:#111315}
+  .card{border-color:#2a2e33}.bad-card{background:#1d1414;border-color:#5a2a2a}
+  td{border-color:#24282c}.muted,dt{color:#8b9199}
+}
+</style>
+<h1>Collider report</h1>
+<p class="muted">${esc(r.repo)} · PR #${r.currentPr.number} ${esc(r.currentPr.title)}</p>
+${detail}
+${existing}
+<section class="card"><h2>Checked combinations</h2><table>${rows}</table></section>
+`
+}
 
 app.listen(PORT, () => {
   console.log(`\n  Collider → http://localhost:${PORT}`)

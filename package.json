@@ -1,15 +1,16 @@
 {
-  "name": "ship",
+  "name": "collider",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "프롬프트 한 줄 → 진짜 도메인에서 살아있는 웹앱 (Daytona HackSprint Seoul)",
+  "description": "합치면 깨지는 PR 을, 합치기 전에 찾는다 (Daytona HackSprint Seoul)",
   "scripts": {
     "dev": "tsx watch server.ts",
     "start": "tsx server.ts",
     "router": "node router/index.js",
     "typecheck": "tsc --noEmit",
-    "preflight": "tsx scripts/preflight.ts"
+    "preflight": "tsx scripts/preflight.ts",
+    "collider": "tsx cli.ts"
   },
   "dependencies": {
     "@daytona/sdk": "^0.214.0",

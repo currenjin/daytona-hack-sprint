@@ -33,3 +33,16 @@ export function pickCombos(prs: PullRequest[]): Combo[] {
 export function comboCount(n: number): number {
   return (n * (n - 1)) / 2 + (n > 2 ? 1 : 0)
 }
+
+/**
+ * CI 에서 쓰는 조합. 지금 열린 PR 하나를 기준으로 다른 open PR 들과 짝만 만든다.
+ *
+ * CI 는 저장소 전체의 조합을 볼 이유가 없다. 방금 바뀐 PR 이 나머지와
+ * 부딪히는지만 알면 된다. PR 이 늘어도 검사 수가 선형으로만 는다.
+ */
+export function pairsWith(current: PullRequest, others: PullRequest[]): Combo[] {
+  return others.map((o) => ({
+    label: `#${current.number} + #${o.number}`,
+    prs: [current, o],
+  }))
+}

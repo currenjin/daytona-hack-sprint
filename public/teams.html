@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Collider · Teams</title>
+<style>
+  :root{
+    --bg:#fafaf9; --card:#fff; --line:#e7e5e4; --soft:#f5f4f2;
+    --fg:#1c1917; --dim:#78716c; --faint:#a8a29e; --ink:#292524;
+    --green:#15803d; --green-bg:#f0fdf4; --green-line:#bbf7d0;
+    --red:#b91c1c; --red-bg:#fef2f2; --red-line:#fecaca;
+    --amber:#a16207; --amber-bg:#fefce8; --amber-line:#fde68a;
+    --blue:#1d4ed8;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0c0a09; --card:#1c1917; --line:#292524; --soft:#161312;
+    --fg:#e7e5e4; --dim:#a8a29e; --faint:#78716c; --ink:#d6d3d1;
+    --green:#4ade80; --green-bg:#0d2117; --green-line:#14532d;
+    --red:#f87171; --red-bg:#261314; --red-line:#7f1d1d;
+    --amber:#fbbf24; --amber-bg:#231c08; --amber-line:#713f12;
+    --blue:#60a5fa;
+  }}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);padding:48px 24px 96px;
+    font:16px/1.6 ui-sans-serif,-apple-system,"Apple SD Gothic Neo",Pretendard,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto}
+
+  header{display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap}
+  h1{font-size:30px;letter-spacing:-.03em;margin:0;font-weight:700}
+  .spon{font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--faint);
+    border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+  .back{margin-left:auto;font-size:13px;color:var(--dim);text-decoration:none;
+    border:1px solid var(--line);border-radius:999px;padding:6px 13px}
+  .back:hover{color:var(--fg);border-color:var(--ink)}
+  .lede{color:var(--dim);margin:0 0 30px;font-size:17px;max-width:66ch}
+  .lede b{color:var(--fg);font-weight:600}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:16px}
+  .panel > h2{font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--faint);
+    margin:0 0 14px;text-transform:uppercase}
+  .hint{color:var(--faint);font-size:12.5px;margin-top:10px}
+  code{font:.92em/1 var(--mono);color:var(--ink)}
+
+  .flow{margin:0;font:12.5px/1.9 var(--mono);color:var(--dim);overflow-x:auto}
+  .flow b{color:var(--fg);font-weight:600}
+
+  .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+  .plan{padding:16px 18px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+  .plan.teams{border-color:var(--green-line);background:var(--green-bg)}
+  .plan .nm{font:700 11.5px/1 var(--mono);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
+  .plan.teams .nm{color:var(--green)}
+  .plan ul{list-style:none;margin:12px 0 0;padding:0}
+  .plan li{font-size:14px;padding:5px 0 5px 20px;position:relative;color:var(--ink)}
+  .plan li::before{content:'✓';position:absolute;left:0;color:var(--faint);font-size:12px}
+  .plan.teams li::before{color:var(--green)}
+
+  .steps{display:grid;gap:0;margin-bottom:0}
+  .st{display:flex;align-items:center;gap:13px;padding:13px 15px;border:1px solid var(--line);background:var(--bg)}
+  .st:first-child{border-radius:10px 10px 0 0}
+  .st:last-child{border-radius:0 0 10px 10px}
+  .st + .st{border-top:0}
+  .st .mk{font:700 12px/1 var(--mono);width:20px;flex:none;text-align:center;color:var(--faint)}
+  .st .nm{font-weight:600;font-size:14.5px}
+  .st .note{color:var(--dim);font-size:13px;margin-left:auto;text-align:right}
+
+  table.keys{border-collapse:collapse;width:100%;margin-top:14px}
+  table.keys th{font:600 11px/1 var(--mono);letter-spacing:.06em;color:var(--faint);
+    text-transform:uppercase;text-align:left;padding:0 10px 8px 0}
+  table.keys td{padding:7px 10px 7px 0;font-size:13.5px;color:var(--dim);
+    border-top:1px solid var(--line);vertical-align:top}
+  table.keys td.k{font:600 12.5px/1.5 var(--mono);color:var(--fg);white-space:nowrap}
+
+  .code{position:relative;margin-top:14px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+  .code pre{margin:0;padding:15px 15px 16px;font:12px/1.7 var(--mono);color:var(--ink);
+    overflow-x:auto;white-space:pre}
+  .copy{position:absolute;top:9px;right:9px;padding:6px 11px;border-radius:7px;
+    border:1px solid var(--line);background:var(--card);color:var(--dim);
+    font:500 12px/1 inherit;cursor:pointer}
+  .copy:hover{border-color:var(--ink);color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Collider</h1>
+    <span class="spon">TEAMS</span>
+    <a class="back" href="/">← Back to checks</a>
+  </header>
+  <p class="lede">
+    Every PR passes CI on its own. <b>Collider checks it against the other open PRs</b>
+    before anyone merges.
+  </p>
+
+  <div class="panel">
+    <h2>GitHub CI Integration</h2>
+    <p style="margin:0 0 14px;font-size:15px">Automatically checks every PR against other open PRs.</p>
+    <pre class="flow"><b>Public Web</b>   Paste PR URLs and run a check by hand
+<b>GitHub CI</b>    PR opened or updated → check runs → GitHub Check + PR comment</pre>
+    <div class="hint">Runs on every <code>opened</code>, <code>synchronize</code> and <code>reopened</code> event.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Free / Teams</h2>
+    <div class="plans">
+      <div class="plan">
+        <div class="nm">Free</div>
+        <ul>
+          <li>Manual PR checks</li>
+          <li>Collision Matrix</li>
+          <li>Runtime evidence</li>
+        </ul>
+      </div>
+      <div class="plan teams">
+        <div class="nm">Teams</div>
+        <ul>
+          <li>Automatic PR checks</li>
+          <li>GitHub Actions integration</li>
+          <li>PR comments</li>
+          <li>Merge status checks</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Setup guide</h2>
+    <div class="steps">
+      <div class="st"><div class="mk">1</div><div class="nm">Add GitHub secrets</div>
+        <div class="note">Settings → Secrets and variables → Actions</div></div>
+      <div class="st"><div class="mk">2</div><div class="nm">Copy workflow</div>
+        <div class="note">.github/workflows/collider.yml</div></div>
+      <div class="st"><div class="mk">3</div><div class="nm">Open PR</div>
+        <div class="note">Check and comment arrive on the PR</div></div>
+    </div>
+
+    <table class="keys">
+      <tr><th>Secret</th><th>What it is</th></tr>
+      <tr><td class="k">DAYTONA_API_KEY</td><td>Daytona API key for the merge sandbox</td></tr>
+      <tr><td class="k">DAYTONA_API_URL</td><td>Daytona API base URL</td></tr>
+      <tr><td class="k">NOSANA_API_KEY</td><td>Nosana key used for credit balance</td></tr>
+      <tr><td class="k">LLM_ENDPOINT</td><td>OpenAI-compatible endpoint of the Nosana deployment</td></tr>
+      <tr><td class="k">LLM_MODEL</td><td>Model name, for example <code>qwen3.5:9b</code></td></tr>
+    </table>
+    <div class="hint">No GitHub token needed. Actions provides <code>GITHUB_TOKEN</code> automatically.</div>
+
+    <div class="code">
+      <button class="copy" id="copy" type="button">Copy</button>
+      <pre id="wf">name: Collider
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  collider:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: currenjin/daytona-hack-sprint
+          path: collider
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+        working-directory: collider
+      - run: npm run collider -- --repo ${{ github.repository }} --pr ${{ github.event.pull_request.number }}
+        working-directory: collider
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
+          DAYTONA_API_URL: ${{ secrets.DAYTONA_API_URL }}
+          NOSANA_API_KEY: ${{ secrets.NOSANA_API_KEY }}
+          LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}</pre>
+    </div>
+    <div class="hint">Two checkouts: one for your repository, one for the Collider source.</div>
+  </div>
+</div>
+
+<script>
+const btn = document.getElementById('copy');
+btn.onclick = async () => {
+  const text = document.getElementById('wf').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (err) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  btn.textContent = 'Copied';
+  setTimeout(() => { btn.textContent = 'Copy'; }, 1400);
+};
+</script>
+</body>
+</html>
