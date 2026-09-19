@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="500" viewBox="0 0 960 500">
+<rect width="960" height="500" rx="24" fill="#fff"/><rect x="1" y="1" width="958" height="498" rx="23" fill="none" stroke="#d0d7de"/>
+<text x="48" y="58" font-family="Arial" font-size="18" font-weight="700" fill="#24292f">COLLIDER · PR #42</text>
+<text x="48" y="118" font-family="Arial" font-size="30" font-weight="700" fill="#1a7f37">Future checks passed</text>
+<text x="48" y="154" font-family="Arial" font-size="17" fill="#57606a">PR #42 stayed valid across the open PRs we checked.</text>
+<rect x="48" y="200" width="864" height="190" rx="16" fill="#f6f8fa" stroke="#d8dee4"/>
+<text x="76" y="244" font-family="Arial" font-size="17" fill="#24292f">#31 + #42</text><text x="860" y="244" text-anchor="end" font-family="Arial" font-size="20" font-weight="700" fill="#1a7f37">✓</text>
+<text x="76" y="294" font-family="Arial" font-size="17" fill="#24292f">#37 + #42</text><text x="860" y="294" text-anchor="end" font-family="Arial" font-size="20" font-weight="700" fill="#1a7f37">✓</text>
+<text x="76" y="344" font-family="Arial" font-size="17" fill="#24292f">#41 + #42</text><text x="860" y="344" text-anchor="end" font-family="Arial" font-size="20" font-weight="700" fill="#1a7f37">✓</text>
+<text x="48" y="442" font-family="Arial" font-size="14" fill="#57606a">Existing CI ✓ · Interaction tests ✓ · 3 combinations checked</text>
+</svg>
