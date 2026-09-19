@@ -1,4 +1,0 @@
-{
-  "path": "test/_collider_interaction.test.ts",
-  "content": "import { describe, expect, it } from 'vitest'\nimport { quote } from '../src/orderService.js'\n\ndescribe('#2 + #1 상호작용', () => {\n  it('두 변경을 함께 쓰면 명세대로 동작한다', () => {\n    // 기본 운임 기준 쿠폰과 멤버십 할인액 합산 후 차감, 부가세 미적용\n    expect(quote({\"id\":\"x\",\"basePrice\":10000,\"couponAmount\":1000,\"membershipRate\":0.9})).toBe(8000)\n  })\n})\n"
-}

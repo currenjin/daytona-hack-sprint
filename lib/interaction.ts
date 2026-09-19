@@ -246,10 +246,17 @@ ${active}
 목록에 없는 기능만 아직 코드에 없으므로 기대값에 넣지 말 것.
 
 ## 할 일
-위 기능을 모두 함께 쓰는 입력 하나를 정하고, 명세대로 계산한 기대값을 구하라.
-아래 JSON 한 덩어리만 출력하라. 설명 금지.
+위 기능을 모두 함께 쓰는 입력 하나를 정하고, 명세가 말하는 계산식을 적어라.
 
-{"input":{"id":"x","basePrice":10000},"expected":0,"why":"계산 근거 한 줄"}`
+**숫자로 답을 내지 마라.** 계산은 이쪽에서 한다. 너는 명세의 어느 규칙을
+어떤 순서로 적용하는지만 식으로 적으면 된다.
+
+expected 는 input 의 필드 이름과 숫자, 괄호, + - * / 만 써서 적는다.
+evidence 에는 그 식의 근거가 되는 명세의 항목 이름을 적는다.
+
+JSON 한 덩어리만 출력하라. 설명 금지. 아래는 형식 예시이며 값은 베끼지 말 것.
+
+{"input":{"id":"a1","basePrice":20000,"someRate":0.8},"expected":"basePrice * someRate","evidence":"명세의 어느 항목"}`
 
   // 기대값은 모델이 명세를 읽고 직접 계산한 숫자다. 한 번만 물으면 산술이
   // 틀린 채로 통과해서 멀쩡한 조합이 충돌로 잡힌다. 실제로 모든 조합이
@@ -262,7 +269,7 @@ ${active}
     try {
       const s = parseScenario(await chat(prompt, onLog))
       votes.push(s)
-      onLog(`${attempt}차 기대값 ${s.expected}${s.why ? ` (${s.why})` : ''}`)
+      onLog(`${attempt}차 ${s.formula} = ${s.expected}${s.evidence ? ` (${s.evidence})` : ''}`)
 
       const agreed = votes.filter((v) => v.expected === s.expected)
       if (agreed.length >= 2) {
@@ -281,7 +288,49 @@ ${active}
   )
 }
 
-type Scenario = { input: Record<string, unknown>; expected: number; why?: string }
+type Scenario = {
+  input: Record<string, unknown>
+  /** 모델이 적은 계산식. 숫자는 여기서 만들지 않는다. */
+  formula: string
+  expected: number
+  evidence?: string
+}
+
+/**
+ * 모델이 적은 계산식을 실제로 계산한다.
+ *
+ * 모델에게 숫자를 직접 물으면 산술을 틀린다. 명세의 어느 규칙을 어떤 순서로
+ * 적용하는지는 모델이 잘 알아낸다. 규칙은 모델이 정하고 숫자는 코드가 만든다.
+ *
+ * 식에 들어올 수 있는 것을 입력 필드 이름과 사칙연산으로 제한한다. 모델이
+ * 뱉은 문자열을 그대로 실행하는 자리라 넓게 열어 두면 무엇이든 돌아간다.
+ */
+export function evalFormula(formula: string, input: Record<string, unknown>): number {
+  const expr = formula.trim()
+  if (!/^[0-9a-zA-Z_+\-*/(). ]+$/.test(expr)) {
+    throw new Error(`계산식에 허용되지 않은 문자가 있습니다: ${expr.slice(0, 60)}`)
+  }
+
+  const numeric = Object.entries(input).filter(([, v]) => typeof v === 'number') as [string, number][]
+  const known = new Set(numeric.map(([k]) => k))
+
+  for (const name of expr.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) ?? []) {
+    if (!known.has(name)) throw new Error(`계산식이 입력에 없는 이름을 씁니다: ${name}`)
+  }
+
+  const fn = new Function(...numeric.map(([k]) => k), `return (${expr})`) as (
+    ...args: number[]
+  ) => unknown
+  const value = fn(...numeric.map(([, v]) => v))
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`계산식이 숫자를 내지 않습니다: ${expr.slice(0, 60)}`)
+  }
+
+  // basePrice * (1 - 0.9) 같은 식은 부동소수 오차를 남긴다. 7999.999999999998 을
+  // 기대값으로 쓰면 맞는 구현도 틀렸다고 나온다.
+  const rounded = Math.round(value)
+  return Math.abs(value - rounded) < 0.01 ? rounded : Number(value.toFixed(2))
+}
 
 /** 모델 출력에서 균형 잡힌 JSON 한 덩어리를 꺼낸다. 앞뒤 사고 산문은 버린다. */
 export function parseScenario(raw: string): Scenario {
@@ -294,8 +343,24 @@ export function parseScenario(raw: string): Scenario {
       if (cleaned[i] === '{') depth++
       else if (cleaned[i] === '}' && --depth === 0) {
         try {
-          const o = JSON.parse(cleaned.slice(start, i + 1)) as Scenario
-          if (o?.input && typeof o.expected === 'number' && Number.isFinite(o.expected)) return o
+          const o = JSON.parse(cleaned.slice(start, i + 1)) as {
+            input?: Record<string, unknown>
+            expected?: unknown
+            evidence?: string
+          }
+          if (o?.input && typeof o.expected === 'string' && o.expected.trim()) {
+            // 프롬프트의 형식 예시를 그대로 베껴 오는 경우가 있다. 예시 값이
+            // 그대로 돌아오면 모델이 명세를 읽지 않은 것이므로 버린다.
+            if (/someRate|basePrice \* someRate/.test(o.expected)) {
+              throw new Error('형식 예시를 그대로 돌려줬습니다')
+            }
+            return {
+              input: o.input,
+              formula: o.expected,
+              expected: evalFormula(o.expected, o.input),
+              evidence: o.evidence,
+            }
+          }
         } catch {
           /* 다음 후보로 */
         }
@@ -303,7 +368,7 @@ export function parseScenario(raw: string): Scenario {
       }
     }
   }
-  throw new Error('input 과 expected 를 담은 JSON 을 찾지 못했습니다')
+  throw new Error('input 과 계산식을 담은 JSON 을 찾지 못했습니다')
 }
 
 /**
@@ -335,7 +400,7 @@ export function pickEntry(
 function renderTest(entry: { fn: string; from: string }, s: Scenario, prs: PullRequest[]): string {
   const rel = `../${entry.from.replace(/\.tsx?$/, '.js')}`
   const names = prs.map((p) => `#${p.number}`).join(' + ')
-  const why = s.why ? `    // ${s.why.replace(/\s+/g, ' ').slice(0, 120)}\n` : ''
+  const why = `    // ${s.formula}${s.evidence ? ` — ${s.evidence.replace(/\s+/g, ' ').slice(0, 80)}` : ''}\n`
 
   return `import { describe, expect, it } from 'vitest'
 import { ${entry.fn} } from '${rel}'
