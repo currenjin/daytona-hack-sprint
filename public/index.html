@@ -72,6 +72,25 @@
   pre#log b { color: var(--fg); font-weight: 500; }
   pre#log i { color: var(--err); font-style: normal; }
 
+  #verify {
+    display: none; margin: 0 0 24px; padding: 16px 18px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  }
+  #verify.on { display: block; }
+  #verify .vh { font-size: 13px; color: var(--dim); margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
+  #verify .vh b { color: var(--fg); font-weight: 600; }
+  #verify .badge {
+    margin-left: auto; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  }
+  #verify .badge.pass { background: rgba(94,234,212,.15); color: var(--accent); }
+  #verify .badge.fix { background: rgba(248,113,113,.15); color: var(--err); }
+  #verify ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+  #verify li { font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
+  #verify li .m { width: 14px; flex: none; }
+  #verify li.ok .m { color: var(--accent); }
+  #verify li.no .m { color: var(--err); }
+  #verify li .d { color: var(--dim); font-size: 12px; }
+
   #result { display: none; text-align: center; padding-top: 8px; }
   #result.on { display: block; }
   #result .title { color: var(--dim); font-size: 14px; margin-bottom: 10px; }
@@ -92,7 +111,7 @@
     <h1>Ship</h1>
     <span class="tag">DAYTONA × DNSIMPLE × NOSANA</span>
   </header>
-  <p class="sub">한 줄이면 됩니다. 에이전트가 만들고, 실행하고, 진짜 인터넷 주소를 붙입니다.</p>
+  <p class="sub">에이전트가 만들고, 격리된 샌드박스에서 실행하고, 스스로 검증해서 고친 다음, 진짜 주소로 출시합니다.</p>
 
   <form id="form">
     <input id="prompt" placeholder="예: 홍대 라멘집 리뷰 사이트" autocomplete="off" />
@@ -113,6 +132,11 @@
   </div>
 
   <pre id="log"></pre>
+
+  <div id="verify">
+    <div class="vh"><b>샌드박스 자기 검증</b><span id="vSub"></span><span class="badge" id="vBadge"></span></div>
+    <ul id="vList"></ul>
+  </div>
 
   <div id="result">
     <div class="title" id="rTitle"></div>
@@ -146,6 +170,22 @@ function escapeHtml(s) {
   return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 }
 
+function renderVerify(msg) {
+  const box = $('verify');
+  box.classList.add('on');
+  $('vSub').textContent = msg.repaired ? '(자가 수정 후 재검증)' : '';
+  const badge = $('vBadge');
+  badge.textContent = msg.ok ? '통과' : '수정 필요';
+  badge.className = 'badge ' + (msg.ok ? 'pass' : 'fix');
+  $('vList').innerHTML = (msg.checks || [])
+    .map((c) =>
+      '<li class="' + (c.ok ? 'ok' : 'no') + '"><span class="m">' + (c.ok ? '✓' : '✗') + '</span>' +
+      '<span>' + escapeHtml(c.name) + '</span>' +
+      (c.detail ? '<span class="d">' + escapeHtml(c.detail) + '</span>' : '') + '</li>',
+    )
+    .join('');
+}
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const prompt = promptEl.value.trim();
@@ -156,6 +196,7 @@ form.addEventListener('submit', async (e) => {
   logEl.classList.add('on');
   statusEl.classList.add('on');
   resultEl.classList.remove('on');
+  $('verify').classList.remove('on');
   dots.forEach((d) => d.classList.remove('on'));
 
   const t0 = Date.now();
@@ -192,6 +233,7 @@ form.addEventListener('submit', async (e) => {
           line(`[${msg.index}/${msg.total}] ${msg.label}`, 'b');
           dots.forEach((d, n) => d.classList.toggle('on', n < msg.index));
         } else if (msg.event === 'title') $('rTitle').textContent = msg.title;
+        else if (msg.event === 'verify') renderVerify(msg);
         else if (msg.event === 'error') line('✗ ' + msg.message, 'i');
         else if (msg.event === 'done') {
           clearInterval(tick);
@@ -199,7 +241,9 @@ form.addEventListener('submit', async (e) => {
           $('rUrl').textContent = msg.url.replace(/^https?:\/\//, '');
           $('rUrl').href = msg.url;
           $('rQr').src = msg.qr;
-          $('rReview').textContent = msg.review ? '검수: ' + msg.review : '';
+          $('rReview').textContent = msg.repairs
+            ? '검증 실패 ' + msg.repairs + '건을 스스로 고친 뒤 출시했습니다.'
+            : (msg.verified ? '검증 통과 후 출시했습니다.' : '');
           resultEl.classList.add('on');
         }
       }

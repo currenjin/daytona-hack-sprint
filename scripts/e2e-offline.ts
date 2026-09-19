@@ -4,8 +4,14 @@
  * 나머지(슬러그, 타이틀 추출, 라우터 등록, 프록시 체인, 폴백, QR, 서버 SSE)는 전부 진짜다.
  */
 import http from 'node:http'
-import { spawn } from 'node:child_process'
+import fs from 'node:fs'
+import { join } from 'node:path'
+import { execFile, spawn } from 'node:child_process'
+import { promisify } from 'node:util'
 import QRCode from 'qrcode'
+
+import { APP_DIR, PORT as PORT_APP } from '../lib/sandbox.js'
+import { VERIFY_JS } from '../lib/verify.js'
 
 import { publish } from '../lib/dns.js'
 import { makeSlug } from '../lib/slug.js'
@@ -147,6 +153,66 @@ check(
 )
 
 server.kill()
+
+console.log('\n[8] 검증기 — 깨진 앱을 실제로 잡아내는가\n')
+
+// 샌드박스에서 도는 것과 '동일한' 검증기 소스를 로컬에서 실행한다.
+// APP_DIR(/tmp/app)을 읽고 :3000 을 찌르므로 그 환경을 그대로 재현한다.
+const BROKEN = `<!doctype html><html><head><title>broken</title></head>
+<body><button id="b">click</button><p>${'테스트 본문. '.repeat(20)}</p>
+<script>document.getElementById('b').onclick = () => { alert('hi' }</script>
+</body></html>`
+
+const GOOD = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>good app</title></head>
+<body><h1>투표</h1><p>${'실제 내용이 들어 있는 본문. '.repeat(12)}</p>
+<button id="b">누르기</button><span id="n">0</span>
+<script>
+  var n = 0;
+  document.getElementById('b').addEventListener('click', function () {
+    n += 1; document.getElementById('n').textContent = String(n);
+  });
+</script>
+</body></html>`
+
+fs.mkdirSync(APP_DIR, { recursive: true })
+
+// /tmp/app 을 :3000 으로 서빙 (검증기의 '서버 200 응답' 체크 대상)
+const appServer = http.createServer((_req, res) => {
+  res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+  res.end(fs.readFileSync(join(APP_DIR, 'index.html')))
+})
+await new Promise<void>((r) => appServer.listen(PORT_APP, r))
+
+// jsdom 을 resolve 하려면 프로젝트 node_modules 옆에서 실행해야 한다
+const verifyPath = join(process.cwd(), '.verify-tmp.cjs')
+fs.writeFileSync(verifyPath, VERIFY_JS)
+
+// execFileSync 는 이벤트 루프를 막아 로컬 서버가 응답하지 못한다 — 반드시 비동기로.
+const execFileAsync = promisify(execFile)
+async function runVerifier(): Promise<{ name: string; ok: boolean; detail: string }[]> {
+  const { stdout } = await execFileAsync('node', [verifyPath], { encoding: 'utf8' })
+  const out = stdout.trim()
+  return JSON.parse(out.slice(out.indexOf('{'))).checks
+}
+
+fs.writeFileSync(join(APP_DIR, 'index.html'), BROKEN)
+const brokenChecks = await runVerifier()
+const syntaxCheck = brokenChecks.find((c) => c.name === '인라인 스크립트 문법')
+check('깨진 앱 — 문법 오류 적발', syntaxCheck?.ok === false, syntaxCheck?.detail.slice(0, 60))
+check('깨진 앱 — 전체 판정 실패', brokenChecks.some((c) => !c.ok))
+
+fs.writeFileSync(join(APP_DIR, 'index.html'), GOOD)
+const goodChecks = await runVerifier()
+const goodFailed = goodChecks.filter((c) => !c.ok)
+check('정상 앱 — 전체 통과', goodFailed.length === 0, goodFailed.map((c) => c.name).join(', '))
+check(
+  'jsdom 런타임 경로가 실제로 돌았음',
+  goodChecks.some((c) => c.name === '스크립트 실행') && goodChecks.some((c) => c.name === '클릭 동작'),
+  goodChecks.map((c) => c.name).join(' · '),
+)
+
+fs.rmSync(verifyPath, { force: true })
+appServer.close()
 router.kill()
 fakeSandbox.close()
 

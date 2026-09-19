@@ -4,14 +4,16 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 import { PORT } from './lib/env.js'
-import { extractTitle, generateApp } from './lib/generate.js'
-import { launchSandbox } from './lib/sandbox.js'
+import { activeProvider, extractTitle, generateApp, repairApp } from './lib/generate.js'
+import { deployFiles, launchSandbox } from './lib/sandbox.js'
+import { ensureJsdom, verifyApp } from './lib/verify.js'
 import { publish } from './lib/dns.js'
-import { reviewApp } from './lib/nosana.js'
 import { makeSlug } from './lib/slug.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const app = express()
+
+const MAX_REPAIRS = 1 // 데모 시간 예산상 1회. 두 번째 실패는 문제를 안고 출시한다.
 
 /**
  * SDK 내부 에러를 데모 중에 읽고 바로 손쓸 수 있는 한 줄로 바꾼다.
@@ -20,8 +22,10 @@ const app = express()
 function friendly(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err)
 
+  // 우리가 이미 한국어로 던진 에러는 그대로 통과 (아래 규칙이 덮어쓰지 않도록 먼저).
+  if (/[가-힣]/.test(raw) && !raw.includes('\n') && raw.length < 160) return raw
+
   if (/authentication method|api[_ ]?key/i.test(raw)) {
-    if (!process.env.ANTHROPIC_API_KEY) return '.env 의 ANTHROPIC_API_KEY 가 비어 있습니다.'
     if (!process.env.DAYTONA_API_KEY) return '.env 의 DAYTONA_API_KEY 가 비어 있습니다.'
     return 'API 키 인증에 실패했습니다. .env 를 확인하세요.'
   }
@@ -65,30 +69,47 @@ app.post('/api/ship', async (req, res) => {
   const started = Date.now()
   // 네트워크가 끊겨도 프론트가 무한 로딩에 빠지지 않도록.
   const timeout = setTimeout(() => {
-    send('error', { message: '60초를 넘겨서 중단했습니다. 다시 시도해주세요.' })
+    send('error', { message: '3분을 넘겨서 중단했습니다. 다시 시도해주세요.' })
     res.end()
-  }, 60_000)
+  }, 180_000)
 
   try {
-    send('step', { index: 1, total: 4, label: '앱 설계' })
-    const files = await generateApp(prompt, log)
-    const html = files['index.html']!
-    const title = extractTitle(html)
+    send('step', { index: 1, total: 4, label: '앱 생성' })
+    let files = await generateApp(prompt, log)
+    const title = extractTitle(files['index.html']!)
     send('title', { title })
 
-    // Nosana 검수는 샌드박스 부팅과 병렬로. 실패해도 플로우를 막지 않는다.
-    const reviewPromise = reviewApp(html, log).catch(() => null)
+    send('step', { index: 2, total: 4, label: '격리 실행' })
+    const { sandbox, previewUrl } = await launchSandbox(files, log)
+    await ensureJsdom(sandbox, log)
 
-    send('step', { index: 2, total: 4, label: 'Daytona 샌드박스' })
-    const { previewUrl } = await launchSandbox(files, log)
+    send('step', { index: 3, total: 4, label: '자기 검증' })
+    let verdict = await verifyApp(sandbox, log)
+    send('verify', { ok: verdict.ok, checks: verdict.checks, repaired: false })
 
-    send('step', { index: 3, total: 4, label: 'DNS 레코드 생성' })
+    // 검증 실패 → 문제를 모델에 되먹여 고치고 재배포 → 재검증
+    let repairs = 0
+    while (!verdict.ok && repairs < MAX_REPAIRS) {
+      repairs++
+      send('step', { index: 3, total: 4, label: `자가 수정 (${repairs}차)` })
+      files = await repairApp(files['index.html']!, verdict.issues, log)
+      await deployFiles(sandbox, files, log)
+      verdict = await verifyApp(sandbox, log)
+      send('verify', { ok: verdict.ok, checks: verdict.checks, repaired: true })
+    }
+
+    if (!verdict.ok) {
+      log(`남은 문제 ${verdict.issues.length}건 — 그대로 출시합니다`)
+    }
+
+    send('step', { index: 4, total: 4, label: '출시' })
     const slug = makeSlug(prompt)
     const url = await publish(slug, previewUrl, log)
-
-    send('step', { index: 4, total: 4, label: '라이브' })
-    const [review] = await Promise.allSettled([reviewPromise])
-    const qr = await QRCode.toDataURL(url, { width: 480, margin: 1, color: { dark: '#0b0d10', light: '#ffffff' } })
+    const qr = await QRCode.toDataURL(url, {
+      width: 480,
+      margin: 1,
+      color: { dark: '#0b0d10', light: '#ffffff' },
+    })
 
     clearTimeout(timeout)
     send('done', {
@@ -96,8 +117,10 @@ app.post('/api/ship', async (req, res) => {
       qr,
       title,
       previewUrl,
+      repairs,
+      verified: verdict.ok,
+      checks: verdict.checks,
       elapsedMs: Date.now() - started,
-      review: review.status === 'fulfilled' ? review.value : null,
     })
   } catch (err) {
     clearTimeout(timeout)
@@ -111,13 +134,13 @@ app.post('/api/ship', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n  Ship → http://localhost:${PORT}`)
 
-  // 데모 5분 전에 키가 빠진 걸 발견하는 사태를 막는다.
-  const missing = (['ANTHROPIC_API_KEY', 'DAYTONA_API_KEY'] as const).filter((k) => !process.env[k])
-  if (missing.length) {
-    console.log(`  ⚠️  필수 키 없음: ${missing.join(', ')} — .env 를 확인하세요`)
+  // 데모 5분 전에 설정이 빠진 걸 발견하는 사태를 막는다.
+  try {
+    console.log(`  생성 엔진: ${activeProvider().label}`)
+  } catch (err) {
+    console.log(`  ⚠️  ${err instanceof Error ? err.message : String(err)}`)
   }
-  if (!process.env.DNSIMPLE_ZONE) {
-    console.log('  ℹ️  DNSIMPLE_ZONE 미설정 — Daytona preview URL로 폴백합니다')
-  }
+  if (!process.env.DAYTONA_API_KEY) console.log('  ⚠️  DAYTONA_API_KEY 없음 — .env 를 확인하세요')
+  if (!process.env.DNSIMPLE_ZONE) console.log('  ℹ️  DNSIMPLE_ZONE 미설정 — Daytona preview URL로 폴백합니다')
   console.log()
 })

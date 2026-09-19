@@ -4,3 +4,4 @@ node_modules/
 *.log
 .DS_Store
 ship-routes.json
+.verify-tmp.cjs

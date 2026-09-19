@@ -101,16 +101,21 @@ console.log(link.url)                            // ← 이 URL을 브라우저�
 ```
 
 - [ ] 샌드박스 **콜드 스타트 실제 소요 시간 측정** → 데모 멘트에 그대로 씁니다
+- [ ] **jsdom을 미리 깐 snapshot을 구워두기** (`npm i jsdom` 후 스냅샷 생성 → `DAYTONA_SNAPSHOT`)
+      검증 단계에서 설치 시간 15~20초를 아낍니다
 - [ ] 자주 쓸 구성을 **snapshot으로 미리 구워두기** (`daytona.create({ snapshot: '...' })`)
       → 당일 부팅 시간이 확 줄어듭니다. 이게 전날 준비 중 가장 ROI 높은 항목입니다.
 
 ---
 
-## 4. Nosana
+## 4. 생성 엔진 (Nosana 또는 로컬)
 
-- [ ] 계정 + 크레딧 확인, CLI 설치 (`npm i -g @nosana/cli`)
-- [ ] **추론 요청 1회 성공** (아무 오픈모델이나) → 응답 JSON을 캡처해 둘 것
-- [ ] 엔드포인트/모델명/레이턴시 메모 → 당일 프롬프트에 그대로 박아 넣습니다
+- [ ] Nosana 대시보드에서 vLLM/Ollama 컨테이너 배포 → 노출된 URL 확보
+- [ ] `.env` 에 `LLM_ENDPOINT=<URL>/v1`, `LLM_MODEL=<모델명>` 기입
+- [ ] **크레딧 없이 먼저 테스트하려면 로컬 Ollama로 대체**:
+      `ollama serve` → `LLM_ENDPOINT=http://localhost:11434/v1`, `LLM_MODEL=qwen2.5-coder:7b`
+- [ ] `npm run preflight` 의 '생성 엔진' 항목이 초록인지 확인
+- [ ] ⚠️ OpenAI 호환 `/chat/completions` 가 아니면 `lib/generate.ts` 의 요청/파싱 두 곳만 고치면 됩니다
 
 ---
 

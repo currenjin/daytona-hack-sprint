@@ -8,6 +8,9 @@ import 'dotenv/config'
 import { promises as dns } from 'node:dns'
 import Anthropic from '@anthropic-ai/sdk'
 import { Daytona } from '@daytona/sdk'
+import { activeProvider } from '../lib/generate.js'
+import { launchSandbox } from '../lib/sandbox.js'
+import { ensureJsdom, verifyApp } from '../lib/verify.js'
 
 type Check = { name: string; run: () => Promise<string> }
 
@@ -15,32 +18,62 @@ const env = (k: string) => process.env[k] || ''
 
 const checks: Check[] = [
   {
-    name: 'Anthropic — 앱 생성 모델',
+    name: '생성 엔진 — 앱 HTML 생성',
     run: async () => {
-      if (!env('ANTHROPIC_API_KEY')) throw new Error('ANTHROPIC_API_KEY 미설정')
-      const res = await new Anthropic().messages.create({
-        model: 'claude-opus-5',
-        max_tokens: 16,
-        output_config: { effort: 'low' },
-        messages: [{ role: 'user', content: 'OK 한 단어만 출력' }],
+      const provider = activeProvider()
+
+      if (provider.kind === 'anthropic') {
+        const res = await new Anthropic().messages.create({
+          model: 'claude-opus-5',
+          max_tokens: 16,
+          output_config: { effort: 'low' },
+          messages: [{ role: 'user', content: 'OK 한 단어만 출력' }],
+        })
+        return `${provider.label} · ${res.usage.output_tokens} 출력 토큰`
+      }
+
+      const base = env('LLM_ENDPOINT').replace(/\/$/, '')
+      const res = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(env('LLM_API_KEY') ? { authorization: `Bearer ${env('LLM_API_KEY')}` } : {}),
+        },
+        body: JSON.stringify({
+          model: env('LLM_MODEL'),
+          max_tokens: 16,
+          messages: [{ role: 'user', content: 'Say OK.' }],
+        }),
       })
-      return `응답 OK (${res.usage.output_tokens} 출력 토큰)`
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`)
+      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] }
+      const text = json.choices?.[0]?.message?.content
+      if (!text) throw new Error('OpenAI 호환 응답이 아닙니다 — LLM_ENDPOINT 를 확인하세요')
+      return `${provider.label} · "${text.trim().slice(0, 30)}"`
     },
   },
   {
-    name: 'Daytona — 샌드박스 + preview URL',
+    name: 'Daytona — 샌드박스 + preview URL + 검증기',
     run: async () => {
       if (!env('DAYTONA_API_KEY')) throw new Error('DAYTONA_API_KEY 미설정')
+      const quiet = () => {}
       const t0 = Date.now()
-      const daytona = new Daytona()
-      const sandbox = await daytona.create(
-        { language: 'typescript', public: true, autoStopInterval: 15 },
-        { timeout: 180 },
-      )
+
+      // 일부러 깨진 앱을 배포해서, 검증기가 실제로 잡아내는지 확인한다.
+      const broken = `<!doctype html><html><head><title>broken</title></head>
+<body><button id="b">click</button>
+<script>document.getElementById('b').onclick = () => { alert('hi' }</script>
+</body></html>`
+
+      const { sandbox, previewUrl } = await launchSandbox({ 'index.html': broken }, quiet)
       const boot = Date.now() - t0
-      const link = await sandbox.getPreviewLink(3000)
-      await daytona.delete(sandbox).catch(() => {})
-      return `부팅 ${(boot / 1000).toFixed(1)}s · preview ${link.url}`
+
+      await ensureJsdom(sandbox, quiet)
+      const verdict = await verifyApp(sandbox, quiet)
+      await new Daytona().delete(sandbox).catch(() => {})
+
+      if (verdict.ok) throw new Error('검증기가 깨진 앱을 통과시켰습니다 — lib/verify.ts 확인 필요')
+      return `부팅 ${(boot / 1000).toFixed(1)}s · preview OK · 검증기가 ${verdict.issues.length}건 적발 (${previewUrl.slice(0, 40)}…)`
     },
   },
   {
@@ -84,31 +117,6 @@ const checks: Check[] = [
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const routes = (await res.json()) as Record<string, string>
       return `TLS 통과 · 등록된 라우트 ${Object.keys(routes).length}개`
-    },
-  },
-  {
-    name: 'Nosana — 오픈모델 추론',
-    run: async () => {
-      const endpoint = env('NOSANA_ENDPOINT')
-      const model = env('NOSANA_MODEL')
-      if (!endpoint || !model) throw new Error('NOSANA_ENDPOINT / NOSANA_MODEL 미설정')
-      const res = await fetch(`${endpoint.replace(/\/$/, '')}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          ...(env('NOSANA_API_KEY') ? { authorization: `Bearer ${env('NOSANA_API_KEY')}` } : {}),
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 16,
-          messages: [{ role: 'user', content: 'Say OK.' }],
-        }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`)
-      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] }
-      const text = json.choices?.[0]?.message?.content
-      if (!text) throw new Error('OpenAI 호환 응답이 아닙니다 — lib/nosana.ts 의 파싱을 고치세요')
-      return `응답: ${text.trim().slice(0, 40)}`
     },
   },
 ]
