@@ -6,6 +6,7 @@ import 'dotenv/config'
 import { daytona as newDaytona } from '../lib/daytona.js'
 import { stripAnsi } from '../lib/collide.js'
 import { fetchPr, findSpec } from '../lib/github.js'
+import { baseFrom, probeEndpoint } from '../lib/probe.js'
 
 const env = (k: string) => process.env[k] || ''
 type Check = { name: string; run: () => Promise<string> }
@@ -59,30 +60,20 @@ const checks: Check[] = [
     },
   },
   {
-    name: 'Nosana — 생성 엔진 (OpenAI 호환)',
+    name: 'Nosana — 생성 엔진 (경로 자동 탐지)',
     run: async () => {
-      const base = env('LLM_ENDPOINT').replace(/\/$/, '')
-      if (!base || !env('LLM_MODEL')) {
-        if (env('ANTHROPIC_API_KEY')) return 'Anthropic 폴백 사용 중 (Nosana 미설정)'
-        throw new Error('LLM_ENDPOINT + LLM_MODEL 미설정')
+      const raw = env('LLM_ENDPOINT')
+      if (!raw || !env('LLM_MODEL')) throw new Error('LLM_ENDPOINT + LLM_MODEL 미설정')
+
+      const r = await probeEndpoint(raw, env('LLM_MODEL'), env('LLM_API_KEY') || undefined)
+      if (!r.ok) {
+        const lines = r.tried.map((t) => `      ${t.url} → ${t.why}`).join('\n')
+        throw new Error(`동작하는 경로를 못 찾았습니다:\n${lines}`)
       }
-      const res = await fetch(`${base}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          ...(env('LLM_API_KEY') ? { authorization: `Bearer ${env('LLM_API_KEY')}` } : {}),
-        },
-        body: JSON.stringify({
-          model: env('LLM_MODEL'),
-          max_tokens: 32,
-          messages: [{ role: 'user', content: 'Reply with the single word: OK' }],
-        }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`)
-      const j = (await res.json()) as { choices?: { message?: { content?: string } }[] }
-      const text = j.choices?.[0]?.message?.content
-      if (!text) throw new Error('OpenAI 호환 응답이 아닙니다 — lib/generate.ts 파싱을 고쳐야 합니다')
-      return `${env('LLM_MODEL')} · "${text.trim().slice(0, 30)}"`
+
+      const base = baseFrom(r.probe.url)
+      const hint = base === raw.replace(/\/+$/, '') ? '' : `  ← .env 의 LLM_ENDPOINT 를 ${base} 로 바꾸세요`
+      return `${env('LLM_MODEL')} · "${r.probe.sample.slice(0, 30)}" · ${r.probe.url}${hint}`
     },
   },
   {
