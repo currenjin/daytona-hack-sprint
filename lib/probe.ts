@@ -39,7 +39,7 @@ export async function probeEndpoint(
   for (const url of candidates(rawUrl)) {
     try {
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 20000)
+      const timer = setTimeout(() => controller.abort(), 120000)
 
       const res = await fetch(url, {
         method: 'POST',
@@ -50,7 +50,7 @@ export async function probeEndpoint(
         },
         body: JSON.stringify({
           model,
-          max_tokens: 16,
+          max_tokens: 512,
           messages: [{ role: 'user', content: 'Reply with the single word: OK' }],
         }),
       }).finally(() => clearTimeout(timer))
@@ -61,10 +61,12 @@ export async function probeEndpoint(
       }
 
       const json = (await res.json()) as {
-        choices?: { message?: { content?: string } }[]
-        message?: { content?: string } // 네이티브 Ollama 형태
+        choices?: { message?: { content?: string; reasoning?: string } }[]
+        message?: { content?: string }
       }
-      const text = json.choices?.[0]?.message?.content ?? json.message?.content
+      const msg = json.choices?.[0]?.message
+      // 추론형 모델은 reasoning 에만 쓰고 content 가 빌 수 있다
+      const text = msg?.content || msg?.reasoning || json.message?.content
 
       if (!text) {
         tried.push({ url, why: 'OpenAI 호환 응답 형태가 아님' })

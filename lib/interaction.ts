@@ -64,14 +64,31 @@ ${sourceDiff(b)}
 }`
 
   const raw = await chat(prompt, onLog)
-  const json = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)
+  // 추론형 모델은 <think> 블록이나 산문을 앞뒤에 붙인다.
+  const clean = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
 
-  try {
-    const h = JSON.parse(json) as Hypothesis
-    onLog(`가설: ${h.collisionPoint}`)
-    return h
-  } catch {
-    throw new Error('가설 생성 실패 — 모델 응답이 JSON이 아닙니다')
+  const start = clean.indexOf('{')
+  const end = clean.lastIndexOf('}')
+  if (start !== -1 && end > start) {
+    try {
+      const h = JSON.parse(clean.slice(start, end + 1)) as Hypothesis
+      if (h.collisionPoint) {
+        onLog(`가설: ${h.collisionPoint}`)
+        return h
+      }
+    } catch {
+      // 아래 산문 폴백으로
+    }
+  }
+
+  // JSON 이 아니어도 흐름을 죽이지 않는다. 가설은 설명이고, 증명은 실행이 한다.
+  const text = clean.replace(/\s+/g, ' ').trim()
+  if (!text) throw new Error('모델이 빈 응답을 반환했습니다')
+  onLog('가설이 JSON 형식은 아니지만 내용은 사용합니다')
+  return {
+    collisionPoint: text.slice(0, 160),
+    reasoning: text.slice(0, 600),
+    expected: '명세 문서 기준 (아래 생성 테스트 참조)',
   }
 }
 
@@ -117,7 +134,20 @@ ${sourceDiff(b).slice(0, 2000)}
 - 테스트 파일 전체 내용만 출력. 설명·코드펜스 금지.`
 
   const raw = await chat(prompt, onLog)
-  let content = raw.trim().replace(/^```(?:ts|typescript|js)?\s*/i, '').replace(/```\s*$/, '').trim()
+  let content = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
+
+  // 추론형 모델은 "Thinking Process:" 같은 서문을 content 로 흘린다.
+  // 코드가 실제로 시작하는 지점부터 잘라낸다.
+  const fence = content.match(/```(?:ts|typescript|js|javascript)?\s*\n([\s\S]*?)```/)
+  if (fence) content = fence[1]!.trim()
+  else {
+    const codeStart = content.search(/^\s*(import |const |describe\(|it\(|test\()/m)
+    if (codeStart > 0) content = content.slice(codeStart).trim()
+  }
+  content = content
+    .replace(/^[\s\S]*?```(?:ts|typescript|js)?\s*/i, (m) => (m.includes('```') ? '' : m))
+    .replace(/```[\s\S]*$/, '')
+    .trim()
 
   if (!/\b(it|test)\s*\(/.test(content)) {
     throw new Error('생성된 테스트에 테스트 케이스가 없습니다')

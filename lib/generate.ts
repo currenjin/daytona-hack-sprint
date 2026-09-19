@@ -2,18 +2,10 @@ import { optional } from './env.js'
 
 export type Log = (message: string) => void
 
-const SYSTEM = `당신은 웹앱을 단일 HTML 파일로 만드는 엔지니어입니다.
+const SYSTEM = `당신은 코드 변경을 분석하고 테스트를 작성하는 시니어 엔지니어입니다.
+요청받은 것만 정확히 출력하세요. 인사말·설명·사족을 붙이지 마세요.
 
-출력 규칙 (반드시 지킬 것):
-- 완성된 단일 HTML 문서 하나만 출력한다. 설명 문장, 마크다운 코드펜스 금지.
-- 외부 CDN / 외부 폰트 / 외부 이미지 금지. CSS와 JS는 전부 인라인. 오프라인에서도 떠야 한다.
-- 모바일 우선. 심사위원이 휴대폰으로 QR을 찍어서 본다. 터치 타겟은 44px 이상.
-- 다크 테마. 배경 #0b0d10 계열, 본문 #e8eaed 계열, 포인트 컬러 하나만 골라서 일관되게.
-- 첫 화면에서 바로 뭔가 동작해야 한다. 빈 상태 금지 — 그럴듯한 더미 데이터를 미리 채워 넣는다.
-- 인터랙션이 최소 하나는 실제로 동작해야 한다 (클릭, 입력, 투표, 필터 등). <button> 을 최소 하나 포함한다.
-- <title> 을 반드시 넣는다.
-
-<!doctype html> 로 시작해서 </html> 로 끝나는 문서만 출력하세요.`
+/no_think`
 
 /**
  * OpenAI 호환 엔드포인트로 생성 (Nosana GPU / 로컬 Ollama / vLLM).
@@ -36,7 +28,7 @@ async function chatOpenAICompatible(userPrompt: string, onLog: Log): Promise<str
     body: JSON.stringify({
       model,
       stream: true,
-      max_tokens: 8000,
+      max_tokens: 6000,
       temperature: 0.7,
       messages: [
         { role: 'system', content: SYSTEM },
@@ -53,6 +45,7 @@ async function chatOpenAICompatible(userPrompt: string, onLog: Log): Promise<str
   const decoder = new TextDecoder()
   let buf = ''
   let out = ''
+  let reasoning = ''
   let ticks = 0
 
   while (true) {
@@ -71,9 +64,16 @@ async function chatOpenAICompatible(userPrompt: string, onLog: Log): Promise<str
 
       try {
         const json = JSON.parse(payload) as {
-          choices?: { delta?: { content?: string }; message?: { content?: string } }[]
+          choices?: {
+            delta?: { content?: string; reasoning?: string }
+            message?: { content?: string; reasoning?: string }
+          }[]
         }
-        const delta = json.choices?.[0]?.delta?.content ?? json.choices?.[0]?.message?.content
+        const d = json.choices?.[0]?.delta ?? json.choices?.[0]?.message
+        // 추론형 모델(qwen3 등)은 reasoning 으로 흘리고 content 가 비기도 한다.
+        // 최종 답만 필요하므로 content 를 우선하되, 둘 다 모아둔다.
+        const delta = d?.content || ''
+        if (!delta && d?.reasoning) reasoning += d.reasoning
         if (delta) {
           out += delta
           if (++ticks % 60 === 0) onLog(`코드 생성 중... (${out.length}자)`)
@@ -84,7 +84,7 @@ async function chatOpenAICompatible(userPrompt: string, onLog: Log): Promise<str
     }
   }
 
-  return out
+  return out || reasoning
 }
 
 /** 어떤 엔진으로 생성할지 — 설정된 것을 그대로 쓴다. */
