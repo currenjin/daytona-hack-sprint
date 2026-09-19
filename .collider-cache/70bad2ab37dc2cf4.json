@@ -1,0 +1,5 @@
+{
+  "collisionPoint": "Thinking Process: 1. **Analyze the Request:** * Role: Senior Engineer analyzing code changes and writing tests (though here it's about analysis). * Task: Analyz",
+  "reasoning": "Thinking Process: 1. **Analyze the Request:** * Role: Senior Engineer analyzing code changes and writing tests (though here it's about analysis). * Task: Analyze two Pull Requests (PR #1, PR #2) that were merged independently without conflicts but might break specifications when merged together. * Constraint 1: Output ONLY the specified JSON format. No greetings, no explanations outside the JSON. * Constraint 2: Use `/no_think` instruction (meaning I should not output internal thinking traces in the final response). Wait, the system prompt says \"/no_think\" but also \"Please do not emit any Chai",
+  "expected": "명세 문서 기준 (아래 생성 테스트 참조)"
+}

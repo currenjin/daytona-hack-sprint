@@ -351,13 +351,23 @@ export function parseScenario(raw: string): Scenario {
           if (o?.input && typeof o.expected === 'string' && o.expected.trim()) {
             // 프롬프트의 형식 예시를 그대로 베껴 오는 경우가 있다. 예시 값이
             // 그대로 돌아오면 모델이 명세를 읽지 않은 것이므로 버린다.
-            if (/someRate|basePrice \* someRate/.test(o.expected)) {
-              throw new Error('형식 예시를 그대로 돌려줬습니다')
-            }
+            if (/someRate/.test(o.expected)) throw new Error('형식 예시를 그대로 돌려줬습니다')
             return {
               input: o.input,
               formula: o.expected,
               expected: evalFormula(o.expected, o.input),
+              evidence: o.evidence,
+            }
+          }
+
+          // 식으로 적어 달라고 해도 숫자를 내놓을 때가 있다. 버리면 생성이
+          // 자주 비므로 받되, 코드가 계산한 값이 아니므로 표를 한 번 더 받는다.
+          if (o?.input && typeof o.expected === 'number' && Number.isFinite(o.expected)) {
+            if (o.expected === 0) throw new Error('형식 예시를 그대로 돌려줬습니다')
+            return {
+              input: o.input,
+              formula: `${o.expected} (모델이 직접 계산)`,
+              expected: o.expected,
               evidence: o.evidence,
             }
           }
