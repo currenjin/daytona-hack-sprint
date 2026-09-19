@@ -3,7 +3,9 @@ import { runCollisionAnalysis, type CollisionReport } from './lib/engine.js'
 import { pairsWith } from './lib/combos.js'
 import { optional } from './lib/env.js'
 import { COLLIDER_MARKER, renderCommentBody, renderErrorCommentBody } from './lib/comment.js'
-import type { PrReport } from './lib/svg.js'
+import { renderFailureSvg, renderSuccessSvg, type PrReport } from './lib/svg.js'
+import { reportId } from './lib/reports.js'
+import { publishSvg } from './lib/publish.js'
 
 /**
  * GitHub Actions 에서 도는 진입점.
@@ -86,7 +88,11 @@ function toPrReport(r: CollisionReport, currentPr: { number: number; title: stri
 
 /** 서버에 결과를 올려 코멘트에 넣을 URL 을 받는다. 서버가 없으면 조용히 건너뛴다. */
 async function publish(report: PrReport): Promise<{ svgUrl?: string; reportUrl?: string }> {
-  if (!baseUrl) return {}
+  // 웹 서버가 공개 주소에 없어도 그림은 띄운다. 레포 브랜치에 올린 raw 주소를 쓴다.
+  const svg = report.collision ? renderFailureSvg(report) : renderSuccessSvg(report)
+  const svgUrl = (await publishSvg(report.repo, reportId(report), svg)) ?? undefined
+
+  if (!baseUrl) return { svgUrl }
   try {
     const res = await fetch(`${baseUrl}/api/reports`, {
       method: 'POST',
@@ -95,10 +101,10 @@ async function publish(report: PrReport): Promise<{ svgUrl?: string; reportUrl?:
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const { id } = (await res.json()) as { id: string }
-    return { svgUrl: `${baseUrl}/reports/${id}.svg`, reportUrl: `${baseUrl}/reports/${id}` }
+    return { svgUrl: svgUrl ?? `${baseUrl}/reports/${id}.svg`, reportUrl: `${baseUrl}/reports/${id}` }
   } catch (err) {
-    console.warn(`collider: 리포트 업로드 실패, 코멘트는 텍스트로 남깁니다 (${String(err)})`)
-    return {}
+    console.warn(`collider: 상세 리포트 업로드 실패 (${String(err)})`)
+    return { svgUrl }
   }
 }
 

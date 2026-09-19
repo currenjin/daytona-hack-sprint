@@ -96,11 +96,22 @@ export function renderCommentBody(r: PrReport, opts: { svgUrl?: string; reportUr
     '',
   ]
 
+  // SVG 를 못 올렸거나 GitHub 이 그림을 대신 받아오지 못해도 코멘트만 읽고
+  // 결론이 나와야 한다. 같은 내용을 항상 표와 목록으로 함께 적는다.
+  const detail = failed ? failureFallback(r) : successFallback(r)
+
   if (opts.svgUrl) {
-    lines.push(`![Collider report](${mdUrl(opts.svgUrl)})`)
+    lines.push(
+      `![Collider report](${mdUrl(opts.svgUrl)})`,
+      '',
+      '<details><summary>Details</summary>',
+      '',
+      ...detail,
+      '',
+      '</details>',
+    )
   } else {
-    // SVG 를 못 올렸을 때도 코멘트만 읽고 결론이 나와야 한다. 같은 내용을 표와 목록으로 적는다.
-    lines.push(...(failed ? failureFallback(r) : successFallback(r)))
+    lines.push(...detail)
   }
 
   if (opts.reportUrl) {
